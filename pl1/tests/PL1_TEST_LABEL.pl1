@@ -1,0 +1,47 @@
+/* test of labels */
+/*  Copyright 2002, 2003-2004 Henrik Sorensen
+
+    This file is part of GCC front-end for the PL/I programming language, GCC PL/I.
+
+    GCC PL/I is free software; you can redistribute it and/or modify it
+    under the terms of the GNU General Public License as published by the
+    Free Software Foundation; version 2.
+*/
+
+alonglablename:;
+
+a:b:c:;
+a1:a2:;
+
+k:a: do i=1; end a;
+
+goto a;
+
+a:a(1): ;
+
+goto a(1);
+
+/* lables with local scope */
+a1:b:proc;
+  b1:do i=1;
+  end b1;
+end b;
+
+a2:proc;
+  do i=1,2;
+    do j=3,4,5;
+      put skip list(i,j);
+  end;
+  end;
+end a2;
+
+dcl:format:entry:proc;
+end;
+
+a3:proc;
+a4: proc;
+dcl:format:entry:proc:entry;
+dcl(1):;
+end a4;
+end a3;
+a:(zdiv):b:(strg):;

@@ -1,0 +1,1499 @@
+@c Top info file for GCC PL/I.
+@c Copyright 2002, Henrik Sorensen
+
+@c NOTE: This files is by far nowhere near completion, and might even be misleading in some places.
+
+@c This file is part of GCC front-end for the PL/I programming language, GCC PL/I.
+
+@c This file is in structure based on gfortran.texi
+
+@c GCC PL/I is free software; you can redistribute it and/or modify
+@c it under the terms of the GNU General Public License as published by
+@c the Free Software Foundation; version 2.
+
+@c GCC PL/I is distributed in the hope that it will be useful,
+@c but WITHOUT ANY WARRANTY; without even the implied warranty of
+@c MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+@c GNU General Public License for more details.
+
+@c You should have received a copy of the GNU General Public License
+@c along with GCC PL/I; see the file COPYING.  If not, write to
+@c the Free Software Foundation, 59 Temple Place - Suite 330,
+@c Boston, MA 02111-1307, USA.
+
+\input texinfo  @c -*-texinfo-*-
+
+@c %**start of header
+@setfilename pl1.info
+@set last-update February 2005.
+@set copyrights-pl1gcc 2002
+@set version-pl1gcc 0.0.9
+
+@include gcc-common.texi
+
+@c This indicates that this documentation is still under development.
+@c For example, if this option is set, overfull boxes are marked with
+@c an ugly black square.
+set DEVELOPMENT
+
+@settitle The GCC front-end for the PL/I programming language
+
+@c Create a separate index for command line options
+@defcodeindex op
+@c Merge the standard indexes into a single one.
+@syncodeindex fn cp
+@syncodeindex vr cp
+@syncodeindex ky cp
+@syncodeindex pg cp
+@syncodeindex tp cp
+
+@c %**end of header
+
+@c Use with @@smallbook.
+
+@c %** start of document
+
+@c Cause even numbered pages to be printed on the left hand side of
+@c the page and odd numbered pages to be printed on the right hand
+@c side of the page.  Using this, you can print on both sides of a
+@c sheet of paper and have the text on the same part of the sheet.
+
+@c The text on right hand pages is pushed towards the right hand
+@c margin and the text on left hand pages is pushed toward the left
+@c hand margin.
+@c (To provide the reverse effect, set bindingoffset to -0.75in.)
+
+@c @tex
+@c \global\bindingoffset=0.75in
+@c \global\normaloffset =0.75in
+@c @end tex
+
+@copying
+Copyright @copyright{} @value{copyrights-pl1gcc} Free Software Foundation, Inc.
+
+Permission is granted to copy, distribute and/or modify this document
+under the terms of the GNU Free Documentation License, Version 2,
+published by the Free Software Foundation; with the
+Invariant Sections being ``GNU General Public License'' and ``Funding
+Free Software'', the Front-Cover
+texts being (a) (see below), and with the Back-Cover Texts being (b)
+(see below).  A copy of the license is included in the section entitled
+``GNU Free Documentation License''.
+
+(a) The FSF's Front-Cover Text is:
+
+     A GNU Manual
+
+(b) The FSF's Back-Cover Text is:
+
+     You have freedom to copy and modify this GNU Manual, like GNU
+     software.  Copies published by the Free Software Foundation raise
+     funds for GNU development.
+@end copying
+
+@ifinfo
+@dircategory Programming
+@direntry
+* pl1gcc: (pl1gcc).                  The GCC PL/I Compiler.
+@end direntry
+This file documents the use and the internals of
+the GCC PL/I compiler, (@command{pl1gcc}).
+
+@insertcopying
+@end ifinfo
+
+Based on gfortran.texi
+Contributed by Henrik Sorensen (@email{henrik.sorensen@@balcab.ch}).
+
+@setchapternewpage odd
+@titlepage
+@title Using GCC PL/I
+@sp 2
+@center Henrik Sorensen
+@sp 3
+@center Last updated @value{last-update}
+@sp 1
+@center for version @value {version-pl1gcc}
+@page
+@vskip 0pt plus 1filll
+For the @value{version-pl1gcc} Version*
+@sp 1
+Published by the Free Software Foundation @*
+59 Temple Place - Suite 330@*
+Boston, MA 02111-1307, USA@*
+@c Last printed ??ber, 19??.@*
+@c Printed copies are available for $? each.@*
+@c ISBN ???
+@sp 1
+@insertcopying
+@end titlepage
+@summarycontents
+@contents
+@page
+
+@node Top, Copying,, (DIR)
+@top Introduction
+@cindex Introduction
+
+This manual documents the use of @command{gcc},
+for source  files written in the PL/I language.
+You can find in this manual how to invoke
+@command{pl1gcc}, as well as its features and incompatibilities,
+and how to report bugs.
+
+@ifset DEVELOPMENT
+@emph{Warning:} This document is still under development,
+and might not accurately reflect the status of the
+most recent @command{pl1gcc}.
+This compiler is stil under development,
+and even though efforts are made to keep this document up-to-date,
+for now we will put emphasis on developing the compiler itself
+rather than on writing user documentation.
+@end ifset
+
+@menu
+* Copying::         GCC General Public License says
+                    how you can copy and share GCC PL/I.
+* GNU Free Documentation License::
+		    How you can copy and share this manual.
+* Funding::         How to help assure continued work for free software.
+* Getting Started:: What you should know about @command{pl1gcc}.
+* GCC PL/I and GCC::	    You can compile Fortran, C, or other programs.
+* GCC PL/I Scanner and parser:: How flex reads the PL/I source code.
+* Compiler options:: Options available for the compiler.
+* Compiler environment:: Variables used during compiling.
+* Compiling and Testing::
+		    Need-to-knows about compiling and testing.
+* Project Status::  Status of pl1gcc, Roadmap, proposed extensions.
+* Contributing::    Helping you can help.
+* Standards::	    Standards supported by pl1gcc.
+* Index::	    Index of this documentation.
+@end menu
+
+
+
+@c ---------------------------------------------------------------------
+@c GNU General Public License
+@c ---------------------------------------------------------------------
+
+@include gpl.texi
+
+@c ---------------------------------------------------------------------
+@c GNU Free Documentation License
+@c ---------------------------------------------------------------------
+
+@include fdl.texi
+
+@c ---------------------------------------------------------------------
+@c Funding Free Software
+@c ---------------------------------------------------------------------
+
+@include funding.texi
+
+@c ---------------------------------------------------------------------
+@c Getting Started
+@c ---------------------------------------------------------------------
+
+@node Getting Started
+@chapter Getting Started
+
+GCC PL/I is a front-end for the PL/I programming language,
+designed initially as a free version of PL/I.
+@command{gcc} is the command you'll use to invoke the compiler.
+The compliler recognizes files by their type, to be PL/I. If the file type
+is pl1 or pli, the @command{gcc} will invoke the pl1gcc compiler.
+
+GCC PL/I is still in an early stages of development.
+@command{gcc} can generate code for most constructs and expressions,
+but much work remains to be done.
+
+When @command{pl1gcc} is finished,
+it will do everything you expect from any decent compiler:
+
+@itemize @bullet
+@item
+Read a user's program,
+stored in a file and containing instructions written
+in PL/I.
+This file contains @dfn{source code}.
+
+@item
+Translate the user's program into instructions a computer
+can carry out more quickly than it takes to translate the
+instructions in the first
+place.  The result after compilation of a program is
+@dfn{machine code},
+code designed to be efficiently translated and processed
+by a machine such as your computer.
+Humans usually aren't as good writing machine code
+as they are at writing Fortran (or C++, Ada, or Java),
+because is easy to make tiny mistakes writing machine code.
+
+@item
+Provide the user with information about the reasons why
+the compiler is unable to create a binary from the source code.
+Usually this will be the case if the source code is flawed.
+An incorect usage of the language causes an @dfn{error message}.
+
+The compiler will also attempt to diagnose cases where the
+user's program contains a correct usage of the language,
+but instructs the computer to do something questionable.
+This kind of diagnostics message is called a @dfn{warning message}.
+
+@item
+Provide optional information about the translation passes
+from the source code to machine code.
+This can help a user of the compiler to find the cause of
+certain bugs which may not be obvious in the source code,
+but may be more easily found at a lower level compiler output.
+It also helps developers to find bugs in the compiler itself.
+
+@item
+Provide information in the generated machine code that can
+make it easier to find bugs in the program (using a debugging tool,
+called a @dfn{debugger}, such as the GNU Debugger @command{gdb}).
+
+@item
+Locate and gather machine code already generated to
+perform actions requested by statements in the user's program.
+This machine code is organized into @dfn{modules} and is located
+and @dfn{linked} to the user program.
+@end itemize
+
+GCC PL/I consists of several components:
+
+@itemize @bullet
+@item
+A version of the @command{gcc} command
+(which also might be installed as the system's @command{cc} command)
+that also understands and accepts PL/I source code.
+The @command{gcc} command is the @dfn{driver} program for
+all the languages in the GNU Compiler Collection (GCC);
+With @command{gcc},
+you can compiler the source code of any language for
+which a front end is available in GCC.
+
+
+@item
+A collection of run-time libraries.
+These libraries contains the machine code needed to support
+capabilities of the Fortran language that are not directly
+provided by the machine code generated by the
+@command{pl1gcc} compilation phase,
+such as intrinsic functions and subroutines,
+and routines for interaction with files and the operating system.
+@c and mechanisms to spawn,
+@c unleash and pause threads in parallelized code.
+
+@item
+The PL/I compiler itself, (@command{pl11}).
+This is the pl1gcc parser and code generator,
+linked to and interfaced with the GCC backend library.
+@command{pl11} ``translates'' the source code to
+assembler code.  You would typically not use this
+program directly;
+instead, the @command{gcc} or @command{pl11} driver
+programs will call it for you.
+@end itemize
+
+
+
+@c ---------------------------------------------------------------------
+@c GCC PL/I and GCC
+@c ---------------------------------------------------------------------
+
+@node GCC PL/I and GCC
+@chapter GCC PL/I and GCC
+@cindex GNU Compiler Collection
+
+GCC used to be the GNU ``C'' Compiler,
+but is now known as the @dfn{GNU Compiler Collection}.
+GCC provides the GNU system with a very versatile
+compiler middle end (shared optimization passes),
+and with back ends (code generators) for many different
+computer architectures and operating systems.
+The code of the middle end and back end are shared by all
+compiler front ends that are in the GNU Compiler Collection.
+
+A GCC front end is essentially a source code parser
+and a pass to generate a representation of the semantics
+of the program in the source code in the GCC language
+independent intermediate language,
+called @dfn{GENERIC}.
+
+The parser takes a source file written in a
+particular computer language, reads and parses it,
+and tries to make sure that the source code conforms to
+the language rules.
+Once te correctness of a program has been established,
+the compiler will build a data structure known as the
+@dfn{Abstract Syntax tree},
+or just @dfn{AST} or ``tree'' for short.
+This data structure represents the whole program
+or a subroutine or a function.
+The ``tree'' is passed to the GCC middle end,
+which will perform optimization passes on it,
+pass the optimized AST and generate assembly
+for the program unit.
+
+Different phases in this translation process can be,
+and in fact @emph{are} merged in many compiler front ends.
+
+The default installation of the GNU Compiler Collection
+includes a number of fine compiler front ends:
+
+@itemize @bullet
+@item
+A ``C'' front end, compatible with a number of ``C'' dialects,
+including ANSI C99 and good-old K&R ``C'' for some of you
+old-timers out there.
+
+@item
+A C++ front end with a complete implementation of the
+Standard Template Library.
+
+@item
+An Objective-C front end
+(with work in progress on an Obj-C++ front end).
+
+@item
+The GNU Fortran 77 front end @command{g77},
+the compiler that, in a way, saved FORTRAN from an
+early death.
+
+@item
+The GNAT Ada 95 front end from Ada Core Technologies.
+This is the  @emph{de facto} industry standard Ada compiler,
+and it has been integrated in GCC for version 3.1 and up.
+
+@item
+A Java (TM) front end that creates byte code
+or machine code executables.
+
+@item
+An example front end called ``treelang''.
+This front end is not shipped with release versions of GCC,
+but it does install itself if you use a CVS snapshot.
+@end itemize
+
+Many more front ends exist,
+including very serious ones like GNU Pascal,
+but also many toy front ends,
+and front ends used for teaching courses in compiler design.
+
+The goal of the pl1gcc project is to build a new front end for GCC:
+A free PL/I front end.
+
+
+@c ---------------------------------------------------------------------
+@c gnu pl1 scanning
+@c ---------------------------------------------------------------------
+
+@node GCC PL/I Scanner and parser
+@chapter GCC PL/I Scanner and parser
+
+@menu
+* Lexical input::
+* Scanning rules::
+* Preprocessor::
+* Parsing::
+* Walk through scanning and parsing sample::
+* PL/I keywords::
+* Scanning strategies::
+@end menu
+
+@node Lexical input
+@section Lexical input
+
+The pl1gcc scanner recognizes the following characters:
+@itemize @w
+@item
+Letters A-Z
+@item
+Numbers 0-9
+@item
+Symbols |!<>=^¬&*+-/'%():,.
+@item
+Special _#@@$
+@end itemize
+
+The scanner is build with the -i option, that ignores case.
+@itemize @w
+@item
+||, !!: Concatenation
+@item
+&: and
+@item
+|, !: or
+@item
+¬, ^: not
+@item
+<>, ¬=, ^=: not equal
+@item
+>=, ¬<, ^<: Greater than or equal
+@item
+<=, ¬>, ^>: Less than or equal
+@item
+**: Power
+@item
+->: Locator
+=>: Handle locator
+@item
++=,-=,*=,/=,|=,&=,||=: Self assignment operators.
+@end itemize
+
+@node Scanning rules
+@section Scanning rules
+
+Comments are completely ignored by the scanner, and are not returned to the
+parser.
+
+The scanner yylex, returns three things
+@itemize @w
+@item
+A token number
+@item
+The matched string for the token
+@item
+The location of the matched token
+@end itemize
+
+The token numbers are generated by bison when the compiler is build.
+The mached string is returned via the parser interface: yylval.s, and
+the token location is passed via the variable: yylloc. To be able to
+track tokens across multiple include files, the location structure has
+been enhanced to include a file numbering:
+@example
+typedef struct pl1ltype
+	@{
+	int first_file;
+	int first_line;
+	int first_column;
+	int last_file;
+	int last_line;
+	int last_column;
+	@} pl1ltype;
+
+#define YYLTYPE pl1ltype
+@end example
+These definitions can be found in the header file pl1-scanparse.h
+
+@node Preprocessor
+@section Preprocessor
+
+Only the %include preprocessor directive is supported. All other preprocessor
+directives are currently ignored,
+with a message to stdout "Scanner: preprocessor directive %s is ignored."
+
+@node Parsing
+@section Parsing
+
+The role of the parser is to bring the returned tokens into context, and to
+ensure the input file matches the PL/I grammar.
+Each token is an integer, with an associated string, and location. The string equals the
+matched string from the input file. To handle the abbreviations, more strings
+can return the same token, as the strings "allocate" and "alloc" both return
+the token ALLOCATE. This is entirely the responsibility of the scanner.
+
+@node Walk through scanning and parsing sample
+@section Walk through scanning and parsing sample
+
+Consider this simple statement, of course this is not a real pl1 program, but
+only a single line from a larger imaginary program:
+@example
+allocate a;
+@end example
+you recognise this as an allocate statement for the variable named 'a'.
+
+This is how the scanner sees the input file:
+@example
+--accepting rule at line 120 ("allocate")
+--accepting rule at line 381 (" ")
+--accepting rule at line 117 ("a")
+--accepting rule at line 379 (";")
+--(end of buffer or a NUL)
+--EOF (start condition 0)
+@end example
+
+This is how the parser sees it, just scroll down for now.
+@example
+Starting parse
+Entering state 0
+Reducing via rule 1 (line 187),  -> @@1
+state stack now 0
+Entering state 2
+Reading a token: Next token is token ALLOCATE (allocate)
+Shifting token 275 (ALLOCATE), Entering state 8
+Reading a token: Next token is token A (a)
+Shifting token 272 (A), Entering state 5
+Reducing via rule 442 (line 876), A  -> varname
+state stack now 0 2 8
+Entering state 277
+Reading a token: Next token is token ';' (;)
+Reducing via rule 397 (line 817), varname  -> varnamequal
+state stack now 0 2 8
+Entering state 318
+Reducing via rule 394 (line 811), varnamequal  -> varnameref
+state stack now 0 2 8
+Entering state 317
+Next token is token ';' (;)
+Reducing via rule 57 (line 285), varnameref  -> allocateoption
+state stack now 0 2 8
+Entering state 316
+Reducing via rule 55 (line 281), allocateoption  -> allocateoptionlist
+state stack now 0 2 8
+Entering state 315
+Next token is token ';' (;)
+Reducing via rule 54 (line 279), ALLOCATE allocateoptionlist  -> allocatestmt
+state stack now 0 2
+Entering state 234
+Reducing via rule 16 (line 239), allocatestmt  -> stmt
+state stack now 0 2
+Entering state 233
+Reducing via rule 13 (line 225), stmt  -> pl1stmt
+state stack now 0 2
+Entering state 232
+Next token is token ';' (;)
+Shifting token 59 (';'), Entering state 518
+Reducing via rule 3 (line 201), pl1stmt ';'  -> pl1stmtlist
+state stack now 0 2
+Entering state 229
+Reading a token: Now at end of input.
+Reducing via rule 2 (line 187), @@1 pl1stmtlist  -> pl1pgm
+state stack now 0
+Entering state 1
+Now at end of input.
+@end example
+
+This output is what you normally can see in the *.stderr files generated by
+the compiler. You can use option '-y' to enable both scanner and parser
+traces, or use -fparser-trace=1  and -flexer-trace=1, respectively. Note, you
+might have to addapt the testone script, since it will normally delete the
+stderr and stdout files if the compilation went ok.
+
+I will just repeat the statement in question:
+@example
+        allocate a;
+@end example
+The scanner says:
+@example
+        --accepting rule at line 120 ("allocate")
+@end example
+the line 120 refers to pl1-scanner.l:
+@example
+        ALLOC(ATE)?             dupyy(ALLOCATE);
+@end example
+@example
+dupyy is a macro that:
+        /* dupyy(t)
+         * ========
+         * assigns copy of yytext to yylval.s and sets the
+         * location of the token in yylloc,
+         * and store the token in prev_token,
+         * and returns token t to parser.
+         */
+@end example
+remember yytext is the variable flex uses to store the matched string, so the
+effect of the rule in line 120, is
+@example
+        yylval.s="allocate";
+        return ALLOCATE;
+@end example
+Note the return statement. Return to where you might think. The answer is to
+the parser. So now we have returned the token ALLOCATE, with the value
+"allocate". Lets look at the beginning of the parser output, just a few lines
+down:
+@example
+        Reading a token: Next token is token ALLOCATE (allocate)
+        Shifting token 275 (ALLOCATE), Entering state 8
+@end example
+
+What is token 275, you might think. This refers to the %token in pl1-parser.y,
+if you count all the tokens mentioned in %token starting from CONSTANT up to
+ALLOCATE you should get 18, and since bison reserves the first 258, there is
+you token number 275. So how did flex know about this number? Well, one of
+the options when invoking bison, generate a header file, that can be used by
+flex, to ensure consistent numbering of the tokens. The bison option is "-d"
+for "Define header file", the default file name is "pl1.tab.h", which is
+included in the pl1-scanner.l.
+The next thing is "Entering state 8", what is that ? The whole purpose of
+bison is to generate a state transition machine, that operates on tokens and
+states. The documentation of the states can be found in the file pl1.output,
+that bison generates when asked by option "-v" as in "verbose". In the
+pl1.output file, you will see the whole grammar and the whole state machine
+bison has generated based on the grammar input file pl1-parser.y.
+The state 8 is, first lines only:
+@example
+        state 8
+          54 allocatestmt: ALLOCATE . allocateoptionlist
+          445 varname: ALLOCATE .
+@end example
+so 54 is parser rule number 54, which is listed in the beginning of pl1.output
+@example
+        54 allocatestmt: ALLOCATE allocateoptionlist
+@end example
+rule 445 is:
+@example
+        445 varname: ALLOCATE
+@end example
+
+So what does all this means. Well, first it means that bison can follow two
+rules, 'allocatestmt' and 'varname', which seems reasonably enough, since we
+have only read the text "allocate". Bison needs more information before
+deciding which rule to follow, so bison calls the scanner again:
+@example
+        --accepting rule at line 381 (" ")
+        --accepting rule at line 117 ("a")
+@end example
+again the line numbers refers to pl1-scanner.l, line 381:
+@example
+        @{WSP@}+                  @{ c$+=yyleng;@}
+@end example
+which means that flex will ignore white spaces, and use c$ to keep track of
+the positions. Don't worry about c$ for now, it is just a counter. After this
+flex rule, the scanner continues to match input with the scanner rules, and
+the line 117:
+@example
+        A                       dupyy(A);
+@end example
+again flex recognises "a" in it's own rule and sets
+@example
+        yylval.s="a";
+        return A;
+@end example
+after the return, the control is back at bison:
+@example
+        Reading a token: Next token is token A (a)
+        Shifting token 272 (A), Entering state 5
+        Reducing via rule 442 (line 876), A  -> varname
+        state stack now 0 2 8
+        Entering state 277
+@end example
+
+in pl1.output, you find:
+@example
+        state 5
+          442 varname: A .
+            $default  reduce using rule 442 (varname)
+@end example
+
+in state 5, since there is only one rule to match, bison will now reduce the
+token A following the rule '442', which means the text A has beed reduced to
+varname.
+
+again in pl1.output you will find
+@example
+        state 277
+          397 varnamequal: varname .
+          398            | varname . '(' varnamedimensioncommalist ')'
+@end example
+
+
+so bison is now in a state trying to match the rule 'varnamequal'. If you note
+the '.' after 'varname', if means how much of the rule that has been matched
+so far. Since there is more than one possibility, the parser asks the scanner
+for another token:
+@example
+        --accepting rule at line 379 (";")
+@end example
+now when looking at the parser output, you will see how it finds out that the
+statement is really an allocate statement, only the reductions are shown:
+@example
+        Reading a token: Next token is token ';' (;)
+        Reducing via rule 397 (line 817), varname  -> varnamequal
+        Reducing via rule 394 (line 811), varnamequal  -> varnameref
+        Reducing via rule 57 (line 285), varnameref  -> allocateoption
+        Reducing via rule 55 (line 281), allocateoption  -> allocateoptionlist
+        Reducing via rule 54 (line 279), ALLOCATE allocateoptionlist  -> allocatestmt
+        Reducing via rule 16 (line 239), allocatestmt  -> stmt
+        Reducing via rule 13 (line 225), stmt  -> pl1stmt
+@end example
+
+WAU all this is happening just because a ';' was read. The parser continues:
+@example
+        Reducing via rule 3 (line 201), pl1stmt ';'  -> pl1stmtlist
+        Reducing via rule 2 (line 187), @@1 pl1stmtlist  -> pl1pgm
+        Now at end of input.
+@end example
+
+And that was it. The scanner has read the whole input file, and the parser
+has successfully parsed the returned tokens.
+
+One caveat, bison can only see one token ahead, when deciding wether to read
+another token, or to reduce via a rule. The look ahead is what causes some
+problems when parsing a language like PL/I, take this statement:
+@example
+        IF(a)=0;
+@end example
+only when the ';' is read bison knows it is an assignment statement. So
+howcome it works anyway ? Well if you read the grammar file, you will see
+that great care has been taken to ensure that bison can reduce of shift by
+just looking one token ahead. Eg the rule for the if statement
+@example
+        ifstmt:         ifprestmt THEN pl1stmt
+                ;
+        ifprestmt:      IF expr
+                |       IF '(' expr ')' '=' expr
+                ;
+@end example
+and the rule for assign statement is:
+@example
+        assignstmt:
+                        IF '(' expr ')' kwassignoption
+        kwassignoption: '=' expr
+                |       '=' expr ',' BY NAME
+                |       ',' varnamerefcommalist '=' expr
+                |       ',' varnamerefcommalist '=' expr ',' BY NAME
+                ;
+@end example
+
+since the prefix of both the if statement and the assign statement are the
+same, bison will happily reduce the expr and shift the following ')' and the
+following '=' and expr, and then when the ';' is read, bison will finally
+have the necessary information needed to reduce this to the expected
+assignment statement. This trick is known as factoring out the grammar rules.
+
+@node PL/I keywords
+@section PL/I keywords
+One notable difference in PL/I, is that the language designers made it easy
+to extend the language, without breaking backwards compability. This was
+achieved by not having any reserved keywords in the PL/I grammar. All keywords
+were given only a special meaning in the specific context. In order for bison
+to act intelligently on the keywords, and still be lalr(1), all the keywords
+must also be matched as variable names in the bison grammar. And to add to the
+complexity, many of the keywords also have an abbreviated variant.
+
+The following keywords can be used as an identifier, if there is a comma between
+two tokens, one is the abbreviation, and another is the long format of the keyword:
+
+@itemize @w
+@item
+A
+ADDBUFF
+ALIGNED
+ALLOC,
+ALLOCATE
+AREA
+ASCII
+ASM,
+ASSEMBLER
+ATTENTION,
+ATTN
+AUTO,
+AUTOMATIC
+@item
+B
+BACKWARDS
+BASED
+BEGIN
+BIN,
+BINARY
+BIT
+BKWD
+BLKSIZE
+BUF,
+BUFFERED
+BUFFERS
+BUFFOFF
+BUFND
+BUFNI
+BUFSP
+BUILTIN
+BY
+BX
+@item
+C
+CALL
+CHAR,
+CHARACTER
+CHARG,
+CHARGRAPHIC
+CHECK
+CLOSE
+COBOL
+COL,
+COLUMN
+COMPLEX,
+CPLX
+CONNECTED
+COND,
+CONDITION
+CONSECUTIVE
+CTLASA
+CTL360
+CONTROLLED,
+CTL
+CONV,
+CONVERSION
+COPY
+@item
+D
+DB
+DATA
+@c DCL,
+@c DECLARE
+DEC,
+DECIMAL
+DEFAULT,
+DFT
+DELAY
+DELETE
+DEF,
+DEFINED
+DESCRIPTORS
+DIRECT
+DISPLAY
+DO
+@item
+E
+EDIT
+ELSE
+END
+ENDFILE
+ENDPAGE
+ENTRY
+ENV,
+ENVIRONMENT
+ERROR
+EVENT
+EXCL,
+EXCLUSIVE
+EXIT
+EXT,
+EXTERNAL
+@item
+F
+FB
+FS
+FBS
+FILE
+FINISH
+FIXED
+FIXEDOVERFLOW,
+FOFL
+FLOAT
+FREE
+FORTRAN
+FORMAT
+FROM
+@item
+G
+GENERIC
+GENKEY
+GET
+GO
+GOTO
+GRAPHIC
+GX
+@item
+I
+IF
+IGNORE
+IN
+INDEXAREA
+INDEXED
+INPUT
+INTER
+INT,
+INTERNAL
+INIT,
+INITIAL
+INTO
+IRRED,
+IRREDUCIBLE
+@item
+KEY
+KEYED
+KEYFROM
+KEYLENGTH
+KEYLOC
+KEYTO
+@item
+LABEL
+LEAVE
+LIKE
+LINE
+LINESIZE
+LIST
+LOCATE
+@item
+MAIN
+NAME
+@item
+NCP
+NOCHARG,
+NOCHARGRAPHIC
+NOCHECK
+NOCONV,
+NOCONVERSION
+NOEXECOPS
+NOFIXEDOVERFLOW,
+NOFOFL
+NOLOCK
+NOOVERFLOW,
+NOOFL
+NOSIZE
+NOSUBSCRIPTRANGE,
+NOSUBRG
+NOSTRINGRANGE,
+NOSTRG
+NOSTRINGSIZE,
+NOSTRZ
+NOUNDERFLOW,
+NOUFL
+NOWRITE
+NOZERODIVIDE,
+NOZDIV
+@item
+OFFSET
+ON
+OPEN
+OPTIONS
+ORDER
+OTHER,
+OTHERWISE
+OUTPUT
+OVERFLOW,
+OFL
+@item
+P
+PAGE
+PAGESIZE
+PASSWORD
+PENDING
+PIC,
+PICTURE
+POINTER,
+PTR
+POS,
+POSITION
+PRINT
+PRIORITY
+PROC,
+PROCEDURE
+PUT
+@item
+R
+RANGE
+READ
+REAL
+RECORD
+RECSIZE
+RECURSIVE
+RED,
+REDUCIBLE
+REENTRANT
+REFER
+REGIONAL
+REPEAT
+REORDER
+REPLY
+REREAD
+RETCODE
+RETURN
+RETURNS
+REUSE
+REVERT
+REWRITE
+@item
+SCALARVARYING
+SELECT
+SET
+SEQUENTIAL,
+SEQL
+SIGNAL
+SIS
+SIZE
+SKIP
+SNAP
+STATIC
+STOP
+STREAM
+STRING
+STRINGRANGE,
+STRG
+STRINGSIZE,
+STRZ
+SUBSCRIPTRANGE,
+SUBRG
+SYSTEM
+@item
+TASK
+THEN
+TITLE
+TO
+TOTAL
+TP
+TRANSIENT
+TRANSMIT
+TRKOFL
+@item
+U
+UNAL,
+UNALIGNED
+UNBUF,
+UNBUFFERED
+UNCONNECTED
+UNDEFINEDFILE,
+UNDF
+UNDERFLOW,
+UFL
+UNLOCK
+UNTIL
+UPDATE
+@item
+V
+VALUE
+VAR,
+VARIABLE
+VARYING
+VB
+VBS
+VS
+VSAM
+@item
+WAIT
+WHEN
+WHILE
+WRITE
+@item
+X
+ZERODIVIDE,
+ZDIV
+@end itemize
+
+@node Scanning strategies
+@section Scannining strategies
+Due to the complexity in the parsing and scanning, some keywords needs special
+treatment of the scanner. In the release notes, this is known as token based 
+lookahead. For the following list of keywords, the scanner enters a special state
+LOOKAHEAD, where all the tokens are saved until either a ';' or ':' is met. At
+this point the scanner will analyse the tokens and decide if the first token has
+to be changed from the keyword token to the VARNAME token. It might be worth 
+noticing that the parser does not know of this at all.
+
+@itemize
+@item
+DECLARE,DCL
+@item
+DEFAULT
+@item
+ENTRY
+@item
+FORMAT
+@item
+PROC
+@end itemize
+
+
+@c ---------------------------------------------------------------------
+@c Compiler options
+@c ---------------------------------------------------------------------
+
+@node Compiler options
+@chapter Compiler options
+
+@itemize @w
+@item
+-flexer-trace: enable trace output from scanner
+@item
+-fparser-trace: enable trace output from parser
+@item
+-y: Enable all tracing options
+@item
+-I<path>: Use <path> to look for include files
+@item
+-J<filename>: Generate file with all the scopes names.
+@end itemize
+
+@c ---------------------------------------------------------------------
+@c Compiler environment
+@c ---------------------------------------------------------------------
+@node Compiler environment
+@chapter Compiler environment
+
+@section SYSLIB variable
+You can set the default search path for where the compiler should look for
+include files.
+
+
+
+@c ---------------------------------------------------------------------
+@c Compiling and Testing
+@c ---------------------------------------------------------------------
+
+@node Compiling and Testing
+@chapter Compiling and Testing
+
+@menu
+* General notes about compiling GCC PL/I::
+* Compiling GCC PL/I::
+* Testing::
+@end menu
+
+@node General notes about compiling GCC PL/I
+@section General notes about compiling GCC PL/I
+@cindex GMP
+@cindex Multiple Precision
+
+Compiling pl1gcc requires the presence of GMP,
+the GNU Multiple Precision library version 4.0
+or better in order to do its arithmetic.
+Download @code{gmp} from your favorite GNU mirror,
+configure and compile it.  Your mileage may vary.
+
+
+@node Compiling GCC PL/I
+@section Compiling GCC PL/I
+@cindex Make-lang.in
+
+To build pl1gcc,
+you first need to get a copy of the GCC source tree.
+pl1gcc uses the new @dfn{GENERIC} intermediate representation
+to communicate with the back end.
+This new IR has not been merged yet with the GCC mainline,
+so you'll need to get a snapshot of the
+@emph{tree-ssa-20020619-branch} from the GCC CVS repository.
+You can check out this branch from the GNU Subversions server:
+
+@example
+$ cvs -d :pserver:anoncvs@@subversions.gnu.org:/cvsroot/gcc login
+(press enter if asked for a password)
+$ cvs -z9 -d :pserver:anoncvs@@subversions.gnu.org:/cvsroot/gcc co -r tree-ssa-20020619-branch gcc
+@end example
+
+You can now build GCC following the instructions on the
+@uref{htpp://gcc.gnu.org/,GCC homepage},
+but with the pl1 front end enabled
+(configure with @option{--enable-languages=pl1}).
+
+
+@node Testing
+@section Testing
+@cindex Test suite
+@cindex Testing
+
+The number of possible pl1gcc programs is unlimited,
+and this means that pl1gcc has to correctly handle lots of possible inputs.
+Whenever you make any changes to the compiler,
+you should first test your change on a test program,
+then test your change against the gfortran test suite.
+In this way, we can be assured that once your fix has been made,
+the problem isn't re-introduced at some later time.
+
+The suites are located on Sourceforge in the directory
+@file{/home/groups/p/pl/pl1gcc/htdocs/test_suite/}.
+To get it, just use @command{sftp} to login to your Sourceforge account.
+If you don't have a Sourceforge account,
+you can get a tar-gzipped copy of the suites by pointing
+your browser to @uref{http://pl1gcc.sourceforge.net}.
+
+If you wish to add test code,
+mail your test code to the gcc-pl1 mailing list,
+or to one of the individual developers if your test
+code is really large.
+
+@c ---------------------------------------------------------------------
+@c Project Status
+@c ---------------------------------------------------------------------
+
+@node Project Status
+@chapter Project Status
+
+The start of the GCC PL/I project was announced on
+the GCC homepage in July 01, 2002
+What is the current status of pl1gcc?
+
+@menu
+* Compiler Status::
+* Milestones::
+* Proposed Extensions::
+@end menu
+
+@node Compiler Status
+@section Compiler Status
+
+NOTE THIS SECTION IS >INCOMPLETE<
+
+The GCC PL/I scanner and parser is as good as finished,
+and most of the type and name resolution phase has been
+implemented as well.
+This meanse that @command{pl1gcc} correctly generates complete syntax
+trees from the source files it gets thrown at.
+@command{pl1gcc} does @emph{not} produce executables for the full
+Fortran 95 language at this stage,
+but we @emph{can} generate code for most statements and expressions.
+We are aiming for feature-completeness before GCC 3.5
+(probably around Q2 2004).
+
+The compiler can also produces modules (a @code{.mod}-file).
+The @code{.mod}-files do not contain object code,
+but they do contain information needed for compiling,
+@emph{not linking!},
+program units which @code{USE} the module,
+i.e. public interfaces, constants, etc.
+Those @code{.mod}-files are generated during the parsing stage.
+Most commercial compilers generate a @code{.mod}-file for
+every module they encounter, and an @code{.o}-file
+for every source file.
+We plan to do the same.
+
+After the type resolution phase is finished,
+the @code{gfc_code} trees are translated to @command{gcc}'s
+GENERIC intermediate representation.
+The back end then generates first RTL, and later assembly and
+object-code from this representation.
+
+Very different parts of a complete Fortran development
+framework are missing:
+
+@enumerate
+
+@item The runtime library
+This is a large chunk of work,
+but big chunks of it can actually be implemented in Fortran,
+thus allowing the target audience to contribute
+(which supposedly is much more Fortran-savvy than C-savvy),
+and allowing greater parallelism in getting this work done;
+this also allows for saving us work by taking parts of
+SGI's Pro64 Fortran 90 library, under certain circumstances.
+@end enumerate
+
+
+@node Milestones
+@section Milestones
+
+``Mainstream'' projects:
+
+@itemize @bullet
+@item
+Figure out what remaining test suite parse failures are due to bad
+Fortran code (@emph{ongoing}, but more people needed. Any volunteers?).
+
+@item
+Implement error printing for diagnostics within simplification
+functions.
+
+@item
+Implement section 14.1.2  Procedure type resolution
+rules (@emph{ongoing}).
+
+@item
+Reduce the resolution phase error percentage (@emph{ongoing}).
+
+@item
+Finish interfacing with GCC (@emph{ongoing}).
+
+@item
+Start interfacing with runtime libraries
+ -- I/O, math and unix (@emph{ongoing}).
+
+@item
+Start work on producing what the I/O libraries lack.
+@end itemize
+
+
+@node Proposed Extensions
+@section Proposed Extensions
+
+Here's a list of proposed extensions for @command{pl1gcc}.
+Most of these are necessary to be fully compatible with
+existing PL/I compilers,
+but they are not part of the official PL/I standard.
+
+@subsection Compiler extensions:
+@itemize @bullet
+
+@item
+Compile code that conserves memory by dynamically allocating common and
+module storage either on stack or heap.
+
+@item
+Compile switch for changing the interpretation of a backslash from a
+character to ``C''-style escape characters.
+
+@item
+Compile flag to generate code for array conformance checking (suggest -CC).
+
+@item
+Compile setting for maximum size of stack frame size before spilling
+parts to static or heap.
+
+@item
+Flag for maximum errors before ending compile.
+
+@item
+Flag to cause compiler to dump the parse tree in ASCII form.
+
+@item
+Option to initialize of otherwise uninitialized integer and floating
+point variables.
+@end itemize
+
+
+@subsection Environment Options
+@itemize @bullet
+@item
+Pluggable library modules for random numbers, linear algebra.
+LA should use BLAS calling conventions.
+
+@item
+Environment variables controlling actions on arithmetic exceptions like
+overflow, underflow, precision loss -- Generate NaN, abort, default.
+action.
+
+@item
+Set precision for fp units that support it (i387).
+
+@item
+Variables for setting fp rounding mode.
+
+@item
+Support old style namelists ending in $end or &end.
+
+@item
+Variable to fill uninitialized variables with a user-defined bit
+pattern.
+
+@item
+Environment variable controlling filename that is opened for that unit
+number.
+
+@item
+Environment variable to clear/trash memory being freed.
+
+@item
+Environment variable to control tracing of allocations and frees.
+
+@item
+Environment variable to display allocated memory at normal program end.
+
+@item
+Environment variable for filename for * IO-unit.
+
+@item
+Environment variable for temporary file directory.
+
+@item
+Environment variable forcing standard output to be line buffered (unix).
+
+@item
+Variable for swapping endianness during unformatted read.
+
+@item
+Variable for swapping Endianness during unformatted write.
+@end itemize
+
+
+
+@c ---------------------------------------------------------------------
+@c Contributing
+@c ---------------------------------------------------------------------
+
+@node Contributing
+@chapter Contributing
+@cindex Contributing
+
+Free software is only possible if people contribute to efforts
+to create it.
+We're always in need of more people helping out with ideas
+and comments, writing documentation and contributing code.
+
+If you want to contribute to GCC PL/I,
+have a look at the long lists of projects you can take on.
+Some of these projects are small,
+some of them are large;
+some are completely orthogonal to the rest of what is
+happening on @command{pl1gcc},
+but others are ``mainstream'' projects in need of enthusiastic hackers.
+All of these projects are important!
+We'll eventually get around to the things here,
+but they are also things doable by someone who is willing and able.
+
+@menu
+* Contributors::
+* Projects::
+@end menu
+
+
+@node Contributors
+@section Contributors to GCC PL/I
+@cindex Contributors
+@cindex Credits
+@cindex Authors
+
+Most of the scanner parser was written by @emph{Henrik Sorensen}, who is
+also the initiator of the whole project.
+Most of the interface with GCC was written by @emph{YouNameIt}.
+
+The following individuals have contributed code and/or
+ideas and significant help to the gfortran project
+(in no particular order):
+
+@itemize @minus
+@item Henrik Sorensen
+@end itemize
+
+The following people have contributed bug reports,
+smaller or larger patches,
+and much needed feedback and encouragement for the
+@command{pl1gcc} project:
+
+@itemize @minus
+@item A Name
+@end itemize
+
+Many other individuals have helped debug,
+test and improve @command{pl1gcc} over the past two years,
+and we welcome you to do the same!
+If you already have done so,
+and you would like to see your name listed in the
+list above, please feel free to mail the project maintainer.
+@c TODO: fill in maintainer email
+
+
+@node Projects
+@section Projects
+
+@table @emph
+
+@item Help build the test suite
+Solicit more code for donation to the test suite.
+We can keep code private on request.
+
+@item Bug hunting/squishing
+Find bugs and write more test cases!
+Test cases are especially very welcome,
+because it allows us to concentrate on fixing bugs
+instead of isolating them.
+
+@item Smaller projects (``bug'' fixes):
+  @itemize @minus
+  @item Allow init exprs to be numbers raised to integer powers.
+  @item Implement correct rounding
+  @item See about making Emacs-parsable error messages.
+  @end itemize
+@end table
+
+If you wish to work on the runtime libraries,
+please contact a project maintainer.
+@c TODO: email!
+
+
+@c ---------------------------------------------------------------------
+@c Standards
+@c ---------------------------------------------------------------------
+
+@node Standards
+@chapter Standards
+@cindex Standards
+
+The GCC PL/I Compiler aims to be a conforming implementation of
+ISO/IEC xxx:xxx (PL/I).
+
+@node Index
+@unnumbered Index
+
+@printindex cp
+
+@bye

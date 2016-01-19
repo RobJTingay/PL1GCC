@@ -1,0 +1,91 @@
+OOPLI PL/I Precompiler
+----------------------
+(c) 1994-2006 Patrick Senti, patrick.senti@gmx.net
+Licensed under GNU GPL v2, see License section at end of document
+
+
+INTRODUCTION
+ 
+    This program is a precompiler that takes PL/I code with object oriented
+    syntax and produces pure PL/I code. 
+
+    See the INTRO.PDF document for a more elaborate introduction to both
+    the concpets of Object Orientation in general, and OO PL/I in particular.
+
+    See OOPLI-german.pdf for a presentation, once used in a training session.
+
+    Note: You may find the introduction written in a somewhat peculiar
+          style and tone. Please remember: that was written back in 1994 
+          when OOP was not very widespread, at least not in my immediate
+          environment. 
+
+DIRECTORIES and FILES
+
+    You will find the following directories:
+
+    ./docs   all documents 
+    ./bin    the OOPLI.cmd REXX precompiler, along with OOPLIRES.INC
+             run-time include file, plus a sample makefile
+    ./sample the sample project code
+    ./sample-original    the original sample as a retrieved it from
+                         the 1994-backup
+
+    Note that the directory structure other than sample-original
+    was created in 2006 in an effort to re-structure the project for
+    more clarity
+
+REQUIREMENTS
+
+    The program is written in REXX and requires that you have a REXX
+    interpreter installed in order to transform object oriented code
+    into PL/I code. You need a PL/I compiler in order to produce an
+    executable module.
+
+COMPILING THE SAMPLE PROJECT
+ 
+    You would need to put all of ./bin into the ./sample directory
+    before you can continue. Then run make on the testoo.mak file
+    in order to execute the commands necessary. This will build
+    the TESTOO.EXE.
+
+    NOTE: the ./sample-original/TESTOO.EXE is an OS/2 executable!
+    
+    WARNING: I have not tried to run this in 2005, so you might
+             encounter errors all along.
+    
+
+NOTICE OF MOTIVATION
+
+    This program was written in 1994 to run in OS/2 Warp and MVS TSO 
+    environments. It has not since been modified, tested or maintained.
+    It is contributed to the open source community in the hope that
+    someone might find the idea of having an object oriented PL/I useful 
+    and would adapt this code to run in a today's (2006) environment.
+
+REFERENCES TO IBM LICENSE
+
+    You will find referencese to IBM owning a copyright to this code. At
+    the time of writing the precompiler (in my spare time), in 1994, I 
+    was an employee of IBM in Switzerland. When I left IBM for another 
+    job, I was granted upon my request full copy and usage rights by
+    Swiss law, while IBM kept the same rights for themselves. Under the 
+    agreement, IBM would retain the right to receive, upon request, and 
+    use any updates that were made to the precompiler. I am now making 
+    this available under the GNU GPL which is in full adherence to the 
+    said agreement between IBM and myself. 
+
+LICENSE    
+
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 2 of the License.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program; if not, write to the Free Software
+    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+

@@ -1,0 +1,192 @@
+INSTALL, Ferbuary 2007.
+
+Installation help for the GCC front-end for the PL/I programming language.
+
+GCC PL/I is released under the terms of GNU Public License; Version 2.
+
+Thank you very much for trying out the PL/I front end. Please drop a note
+to the project, and let us know how it goes. Any feedback is good feedback.
+
+** NOTE **
+There is still no code generation taking place, but your feedback is still
+very important for the project.
+
+Installation
+============
+
+Since the GCC PL/I is not yet part of mainline GCC, there are some
+manual steps you have to perform before you can use the GCC PL/I compiler.
+
+If you are using Cygwin under Windows, please follow the instructions 
+in the file INSTALL.cygwin. 
+If you want to use eclipse please consult INSTALL.eclipse.
+
+First you need the source code for the GCC compiler itself. If you do not 
+already have the source code installed you will have to download it.
+
+This is how we did it; you can probably come up with another way.
+
+Get latest working version of the gcc-core-4.3-2007mmdd weekly snapshot and
+the latest version of the pl1gcc-0.0.x archive file, from
+	http://pl1gcc.sourceforge.net
+	
+Note: The snapshot of gcc downloaded from the pl1gcc project is 
+      known to work with pl1gcc. Feel tree to try another snapshot from 
+      the GCC project, please let us know if it works or not.
+
+GCC recommends to separate the source directories from the build directories,
+so create a direcory to hold the unpacked source code.
+
+	cd ~
+	mkdir gcc-src
+
+Unpack the downloaded gcc-4.3-2007mmdd snapshot into your 
+directory for gcc source, assuming the downloaded files are stored
+in ~/download, this will unpack the gcc compiler file:
+
+	cd ~/gcc-src
+	tar -xjf ~/download/gcc-4.3-2007mmdd.tar.bz2
+	
+Note: this will create a directory named ~/gcc-src/gcc-4.3-2007mmdd 
+
+Unpack the pl1gcc-0.0.x.tar.bz2 file into your home directory, with these commands
+
+	cd ~
+	tar -xjf ~/download/pl1gcc-0.0.x.tar.bz2
+
+This will create the directories ~/pl1gcc-0.0.x/pl1
+
+
+Create a link from ~/gcc-src/gcc-4.3-2007mmdd to your unpacked pl1 library:
+
+	cd ~/gcc-src/gcc-4.3-2007mmdd/gcc
+	ln -s ~/pl1gcc-0.0.x/pl1 pl1
+
+Create an empty ~/gcc directory, where the built object will created:
+
+	cd ~
+	rm -rf ~/gcc
+	mkdir gcc
+
+Unpacking is now done, and you can start to build your downloaded compiler.
+Now do:
+
+	cd ~/gcc
+	../gcc-src/gcc-4.3-2007mmdd/configure --disable-bootstrap
+	make
+
+This might take a while (*), so go enjoy some of your favorite bewerages, 
+and of course don't forget to make a donation to the pl1gcc project [**]
+
+(*)
+You can speed up the compilation considerably, by disabling some
+of the languages you do no longer need, now you have PL/I as your
+favorite compiler :-)
+To do this edit the files ~/gcc-src/gcc-4.3-2007mmdd/gcc/<language>/config-lang.in,
+and set the variable
+	build_by_default="no"
+
+
+W A R N I N G: do not make install 
+==================================
+
+Since there is no actual code generation taking place in the PL/I compiler,
+it does not make any sense to install the newly built compiler. Remember,
+if you do install the just downloaded and built gcc-4.3 snapshot, you are
+in fact running one of the most recent versions of gcc. Unless you are sure 
+this is what you want to do, it is generally not recommended to run this 
+compiler as your default compiler.
+
+
+Testing the PL/I compiler
+=========================
+
+When the compile is done, it is time to test the new PL/I compiler:
+
+	cd ~/pl1gcc-0.0.x/pl1/tests
+	. ./testall
+
+This will invoke your newly created PL/I compiler for a number of tests.
+If a test fails, there are two files created, one each for the stderr and
+stdout from the compiler output.
+
+The current testsuite is mainly there to detect any regression in the
+scanning and parsing of the source code. If all goes well, you should
+see this list on your screen:
+	me@home:~/pl1gcc-0.0.x/pl1/tests> . ./testall
+	Checking OK    for  ./PL1TEST.pl1
+	Checking OK    for  ./PL1_TEST_001.pl1
+	Checking OK    for  ./PL1_TEST_ASSIGNMENT.pl1
+	Checking OK    for  ./PL1_TEST_CONDITIONS.pl1
+	Checking OK    for  ./PL1_TEST_CONSTANTS.pl1
+	Checking OK    for  ./PL1_TEST_DCL.pl1
+	Checking OK    for  ./PL1_TEST_DEFAULT.pl1
+	Checking OK    for  ./PL1_TEST_DO.pl1
+	Checking OK    for  ./PL1_TEST_IF.pl1
+	Checking OK    for  ./PL1_TEST_IO.pl1
+	Checking OK    for  ./PL1_TEST_KEYWORDS.pl1
+	Checking OK    for  ./PL1_TEST_LABEL.pl1
+	Checking OK    for  ./PL1_TEST_SCOPE.pl1
+	Checking OK    for  ./PL1_TEST_SELECT.pl1
+	Checking OK    for  ./PL1_TEST_STORAGE.pl1
+
+
+Testing your own PL/I files
+---------------------------
+
+Please try pl1gcc out on some of your own samples, and let us know how it goes.
+If you ensure the filename ends with '.pl1', the test script will include your
+file next time you run it. Alternatively you can use the script ./testone, to
+invoke the compiler for just one file, example
+	cd ~/pl1gcc-0.0.x/pl1/tests
+	. ./testone my-very-own-pl1file.pl1
+
+Misc notes
+----------
+
+If your pl1 test files need to include some files, please place them in the
+	~/pl1gcc-0.0.x/pl1/tests/include
+directory. If you use extensions on the include file on the file system but 
+not on the %include statement itself, use the compiler option -isuffix,
+for example: "-isuffix.incl.pl1"
+If you want to put your includes in another library, set the environment
+variable PL1SYSLIB to reflect this
+	export PL1SYSLIB=mydir0/:mydir1/
+it most end with a '/'
+Alternatively your can edit the tests/testone bash script to use your 
+include directories.
+Further if you plan to compile a large number of files, you can benefit from
+editing the ./testone script, and set the TEMPPATH variable to a ramdisk.
+
+
+That's it
+=========
+
+If you know of a PL/I project that should be compilable by the
+pl1gcc compiler, please get in touch with us and we'll see if we can
+accommodate it. The code does not have to be covered by GPL.
+
+If you encounter problems, please report them to
+pl1gcc-development (-at-) lists.sourceforge.net
+
+The project is looking for more people to join the development and testing.
+There are a number of interesting tasks related to the pl1gcc project, where 
+any help would be greatly appreciated.
+
+a) Error regression infrastructure
+b) Error message codes
+c) Case insensitive include name expansion
+d) Test cases
+e) Project web pages
+f) Language reference manual
+g) User guide
+h) Tutorial to PL/I
+i) Frequently asked questions
+j) Internals of pl1gcc
+
+
+Remember to have some fun
+
+The GCC PL/I Team.
+     http://pl1gcc.sourceforge.net
+[**] http://sourceforge.net/donate/index.php?group_id=49916

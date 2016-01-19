@@ -1,0 +1,4282 @@
+Working on
+==========
+
+
+TODO
+====
+	
+	* Review location tracking of %DO  .. %END
+	* Allow nested %DO .. .%END
+    * Fix current stacking of %DO .. %END input
+	
+    * In ppVariable.c: fix exaggerated usage of nested IFs in error cases.
+
+    * Adapt calling convention in preprocessor: 
+        return values <0 means error
+        other means ok
+    * check return codes, seems like the other problem
+        Reading a token: Next token is token ';' (: )
+        Reducing stack by rule 12 (line 206):
+           $1 = token END (: )
+        $$$ ppSetEndStmt. Level 1 Stack now 0 1
+        Error: popping token '%' (: )
+        Stack now 0
+        Cleanup: discarding lookahead token ';' (: )
+        Stack now 0
+
+	
+    * Restructure interface to preprocessor completely
+    * yet another rewrite of the scanner/parser interfaces: yarots/pi
+      
+
+    * Fix preprocessor stmts placed inlined in statement
+        DCL a(0:4) fixed init(0 %DO I=1 to 4; ,i %END; ) ;
+      give
+        Preprocessor error at (File,line,column from,to)([0],5,38-39) offset from-to[67-68[ : 
+        syntax error, unexpected ',', expecting '%'
+  	    
+--------------------------------------------------
+
+ 	Planned For 0.0.1x
+ 	==================
+
+	* Preprocessor Cross reference
+	* %DO (partly)
+	* Internal code cleanups and refactoring
+
+
+---------------- CODE CLEANUPS and REFACTORING -----------
+ 	
+	* In pl1-scanner.l, figure out what to do with
+		ppExpandTokenText
+	- using constants, defined in ppVariableStructs.h
+		LIT_DCL_ACTIVE
+		LIT_DCL_TYPE_LABEL
+	- using scanner variables:, defined in pl1-scanner.l
+	  	ppGatherTokens
+	  	ppCurrentContext
+	- using functions
+	    ppFindDCLNameInList, ppVariable.c
+	  	ppGetValueAsString, ppVariable.c
+	  	addIncludeFile, PLIParser.c
+	  	stackCurrentBuffer, pl1-scanner.l
+	  	yyget_lloc, flex
+	  	yy_scan_string, flex
+	- invoked by
+		#define __dupyy(t) { ...
+		if(ppExpandTokenText(t,(yytext),yyscanner)==0) 
+	 = Ouch, the spider in the middle :-)
+
+	* In pl1-scanner.l, figure out what to do with
+		switchToPreviousBuffer
+	- using functions
+		yy_delete_buffer
+		yy_switch_to_buffer
+	- using variables
+		YY_CURRENT_BUFFER
+		currentScannerBufferList	
+		currentIncludeFile
+		sl$ sc$ so$ l$ c$ o$
+
+	* In pl1-scanner.l, figure out what to do with
+		stackCurrentBuffer
+	- using functions
+	- using variables
+		currentScannerBufferList	
+		sl$ sc$ so$ l$ c$ o$
+
+	* Create module for the structure for parser parameters
+		add showWelcome, or call it sprintf_parameters
+
+	* Split PLIParser.h into two distinct parts
+		parser parameter
+		external parser definition
+
+	* In pl1-parser.y, figure out what to do with
+		processParserStackProcedure
+		defineProcedure
+		addDclImplied
+		addDclDeclareElementList
+		addDclDeclareElement
+		findDclName
+		allocFullLabelName
+		addName
+		newListOfNames
+
+	* create external modules for
+		- scope functions
+		- label functions
+		- parser stack functions
+		- declare list functions
+		
+	* Find better solutions for extern references to bison functions, currently
+	  in PLIParser.c:
+		  extern int yydebug;
+		  extern int yyparse( yyscan_t scanner );
+		
+	* Create new structure to encapsulate the include file list only.
+
+	* Add full description of RETURNS info to variable xref
+
+	* Add optional location parameter to add{Error,Warn,Info}Message.
+
+	* Consider how to merge attributes, eg
+		dcl ( a, b fixed ) fixed bin;	  
+	  is strictly an error because the fixed attribute is already set for the
+	  variable 'b'. This is equivalent to dcl b fixed fixed bin.
+		 
+-----------------------------------------------------
+
+	* Add some simple tests to ensure integrity of DeclareElements:
+	  o UNION/CELL has to separate two structures at same level>1.
+	  o All names has to be unique within declare struct and within 
+	    current scope, and within same structure level.
+	    
+	* in structure DclOptionList, let uniontype be a Nstate attribute.
+	- generally only use Nstate and rid the boolean/tristate
+	- further find a way to do prober enumeration of declare attributes.
+
+
+	* Check if the preprocessor can be used to evaluate constant expressions
+	    dcl a char(1+99);
+
+	* Add %IF
+	  during pp-parsing, add pseudo labels to branch to in case expression is false.
+	  	% IF expr %THEN stmt1 ; %ELSE stmt2 ;
+	  two things can happen, expr is TRUE or expr is FALSE.
+	  if TRUE, process stmt1 and skip %ELSE stmt2
+	  if FALSE, skip %THEN stmt1, and process stmt2
+	- Idea: Let the pp lookahead continue until the whole %IF %THEN %ELSE is read.
+	  For this to work, the interface between scanner and pp-parser has to be
+	  much more mature.
+
+ 	* Also consider how to do lookup of qualified or partly qualifed
+ 	  names, eg.
+ 	     dcl 1 a, 3 b, 5 n1 fixed
+ 	            , 3 c, 5 n1 float   ;
+ 	  The field n1 can be referenced as:
+ 	     - a.b.n1, a.c.n1, b.n1, c.n1, are all OK
+ 	     - both a.n1 and n1 are ambigious, and will cause an error.
+
+	* Check if CELL/UNION makes any sense here:
+		dclterm:
+				'(' dcltermcommalist ')'
+			|	'(' dcltermcommalist ')' dclfactor
+			|	NUM '(' dcltermcommalist ')' 
+			|	NUM '(' dcltermcommalist ')' dclfactor
+			|	NUM '(' dcltermcommalist ')' CELL
+			|	NUM '(' dcltermcommalist ')' UNION
+			;
+    --------------------------------------------
+	* errors when compiling Andys code:
+	- line numbering is busted in error messages, approx double the count
+	- seems to have to do with DOS files only.
+	* ensure that parsing stops when error(...) is invoked
+	
+	* consolidate yyerror and pp_yyerror, so the error function as 
+	  available everywhere.	if(current==NULL) return ;
+   -----------------------------------------------
+	* store attributes and with declared names.
+	- store the list of variable names on the parserstack.
+	- within the scopenode store the parsed dcloptionlist
+	* In the rule dclpgm, reuse part the struct DclProcOptionList.
+		dclpgm:	ENTRY
+			|	ENTRY '(' entryparmcommalist ')'
+			|	RETURNS '(' entryparmcommalist ')' /* commalistt is only ok, when a structure is returned */
+			|	OPTIONS '(' entryoptionlist ')'	 
+		there are enough differences between struct DclProcGroup and the
+		rule dclpgm. Eg, order/recursive/chargraphic, in other words any
+		options on the PROCEDURE statement that affects the codegeneration
+		is (of course) not part of the declaration of the calling ENTRY.
+		And further on the PROCEDURE/ENTRY statement, only names for the 
+		parameters are listed, whereas the declared ENTRY contains a list
+		of parameter definitions, more list the RETURNS statement on PROC/ENTRY
+	- come to think of it, the entryoption list and the procoption list contains
+	  two completely different kind of information, and should be implemented
+	  as two different structures.
+   -----------------------------------------------
+ 	* Verify the list of libraries that are linked to pl11.o
+		 *** Making PL/I Front End ***
+		/home/hsorensen/gcc/./prev-gcc/xgcc -B/home/hsorensen/gcc/./prev-gcc/ -B/usr/local/i686-pc-linux-gnu/bin/   -O2 -g -fomit-frame-pointer -DIN_GCC   -W -Wall -Wwrite-strings -Wstrict-prototypes -Wmissing-prototypes -pedantic -Wno-long-long -Wno-variadic-macros -Wno-overlength-strings -Wold-style-definition -Wmissing-format-attribute -Werror -fno-common   -DHAVE_CONFIG_H  -o pl11 \
+				pl1/pl11.o pl1/pl1tree.o pl1/tree-convert.o \
+				pl1/pl1.tab.o \
+				pl1/lex.yy.o \
+				pl1/pl1pp-parser.o \
+				pl1/libpl1/PPDebugLog.o pl1/libpl1/IncludeFileUtils.o pl1/libpl1/PLIMessage.o pl1/libpl1/ScannerUtil.o pl1/libpl1/SavedToken.o pl1/libpl1/TokenLocation.o pl1/libpl1/TokenBasedLookahead.o pl1/libpl1/ppVariable.o pl1/libpl1/parseParserStack.o pl1/libpl1/parseProcGroupList.o pl1/libpl1/parseScopeNode.o pl1/libpl1/parseProcOptionList.o pl1/libpl1/parseDclOptionList.o pl1/libpl1/parseMisc.o pl1/libpl1/MDArray.o \
+				main.o tree-browser.o libbackend.a ../libcpp/libcpp.a ../libdecnumber/libdecnumber.a ../libiberty/libiberty.a  ../libcpp/libcpp.a   ../libiberty/libiberty.a ../libdecnumber/libdecnumber.a ../libcpp/libcpp.a ../libiberty/libiberty.a   ../libdecnumber/libdecnumber.a attribs.o -lm 
+		echo timestamp > pl1.done
+ ----------------------
+	* review parser rules for default statement: check if dcloption is correct here.
+		defaultstmt:	
+				DEFAULT defaultitemcommalist 
+			|	DEFAULT NONE
+			;
+		defaultitemcommalist:
+				defaultitem
+			|	defaultitemcommalist ',' defaultitem
+			;
+		defaultitem:
+				defaultpredicateexpr
+			|	defaultpredicateexpr dcloptionlist
+			|	defaultpredicateexpr dcloptionlist VALUE '(' dcloptionlist ')'
+			|	'(' defaultitemcommalist ')'
+			|	'(' defaultitemcommalist ')' dcloptionlist
+			|	'(' defaultitemcommalist ')' dcloptionlist  VALUE '(' dcloptionlist ')'
+			|	'(' defaultitemcommalist ')' ERROR
+			;
+		defaultrangespec:
+				varname
+			|	varname ':' varname
+			|	defaultrangespec ',' varname
+			|	defaultrangespec ',' varname ':' varname
+			;
+		defaultpredicateexpr: 
+				defaultpredicateexpr AND defaultpredicateexpr
+			|	defaultpredicateexpr OR  defaultpredicateexpr
+			|	NOT defaultpredicateexpr %prec NOT
+			|	'(' defaultpredicateexpr ')' 
+			|	RANGE '(' '*' ')'
+			|	RANGE '(' defaultrangespec ')'
+			|	DESCRIPTORS
+			|	dcloption
+			;
+ 
+ ----------------------
+	* Keep track of number of times a pp variable has been used,
+	  and show warning message if pp variable is unused.
+	  
+	* Fix location tracking if <<EOF>> is met during ppScan for labels
+	- from PL1-PREPROCESSOR.pl1
+		Preprocessor error at (from line,column)-(to line,column)(-73,-1)-(183,0) offset[255-0[	: syntax error, unexpected $end, expecting '%'
+	- Something like this:
+	   /* Update the location for the $end token that is returned to the parser
+	    c$+=(yyleng);
+	    o$+=(yyleng);
+	    SET_yylloc(yyget_lloc(yyscanner),currentIncludeBufferElement,&sl$,&sc$,&so$,l$,c$,o$,(yyleng));
+	   */
+	 * Check, can a preprocessor label be substituted ?
+	 - Can a preprocessor label also be a variable ?
+	 - Is %goto allowed outside the current file ?
+	 - Is the scope of a %goto label only the current file ?
+	 - Verify what happens here:
+	 	%dcl al char;
+	 	%al='l1';
+	 	%goto al;
+	 	%al:;
+	 	%l1:;
+	 	%l2:;
+	 			
+	* Create a simple endless loop detection
+	  in pl1pp-parser.y have a variable that that keep track of the number of 
+	  preprocessor assignments that are done, and at the time of the GOTO keep 
+	  the current number together with the goto statment, and if it is the same
+	  then there is a endless loop.
+
+ 	* Make lookup of filenames case insensitive (optional).
+ 	- consider to use the locate/slocate databases
+ 	- During search for include files when entering a directory scan the whole 
+ 	  directory and store all the names so they easily can be compared without
+ 	  case. 
+ 	* Allow include file names to have more than two qualifiers on %INCLUDE statement
+ 	
+ 	* Allow the preprocessor to have keywords as variable names, this will also get rid 
+ 	  the horrible scanner rules:
+		 REPLACE { /* REPLACE is only a token for the preprocessor */
+                   if(ppGatherTokens){ __dupyy(REPLACE);} else{ __dupyy(VARNAME); }
+                 }
+      should of course just be
+	      REPLACE         dupyy(REPLACE);
+	  note, remember to remove the explicit checking of ppGatherTokens and the setting
+	        of tokens as VARNAMEs, 
+	* Add location information when using addXxxxMessage.
+
+	* Find a way to mail the commit-messages of CHANGELOG, to pl1gcc mailing list.
+
+	* Check why all the headerfiles are dependent for pl1-scanner.l
+	  Only real dependencies that the flex generation it shelf needs 
+	  should be in the make file.
+	- Current dependencies:
+		pl1/lex.yy.c: pl1/pl1-scanner.l pl1/pl1.tab.h pl1/pl1pp-parser.h \
+		 pl1/libpl1/include/PPDebugLog.h \
+		 pl1/libpl1/include/TokenLocationStructs.h \
+		 pl1/libpl1/include/TokenLocation.h \
+		 pl1/libpl1/include/ScannerUtil.h \
+		 pl1/libpl1/include/TokenBasedLookahead.h \
+		 pl1/libpl1/include/SavedToken.h \
+		 pl1/libpl1/include/SavedTokenStructs.h \
+		 pl1/libpl1/include/ppVariableStructs.h 
+			flex $(FLEX_FLAG) -opl1/lex.yy.c ${srcdir}/pl1/pl1-scanner.l --header-file=pl1/yyFlex.h
+	
+	* check if default statement is for the whole scope, or can be changed 
+	  as part of program flow::
+		a:proc
+		  default range(b) float;
+		  dcl b1;
+		  
+		  default range(b) fixed;
+		  dcl b2;
+		end a;
+	- depending on how the two default statements are interpretted, 
+	     b1 could be float, and b2 fixed.
+	  or if only the last default is in effect:
+	     b1 could be fixed, and b2 fixed.
+	  
+	--- source code ----      ----- pseudo actions -----------
+	a: proc(m,n);             { setScope(A); 
+	                            defineEntry(primary,A,currentParent);
+	                            setParameterList(A,"m,n");
+	                          }
+	
+	  dcl n fixed,            { addDCL(n,"fixed");}
+	      m float             { addDCL(m,"float");}
+	  ;
+	  
+	  a1: entry(f,g,h);       { defineEntry(secondary,A1,currentParent);
+	                            setParameterList(A1,"f,g,h");
+	                          }
+	                            
+	  dcl (f,g,h) fixed ;     { addDCL("f,g,h","fixed"); }
+	end a;                    { endScope(A); }
+	
+	call a(1,2);              { setReference(call,A);
+	                            checkParameters(A,"1,2");
+	                          }
+	                          
+	* rearrange the bison rules for dcloption, to catch some syntaxerrors 
+	  already during the parsing. For example dcl f file fixed.
+	  Something like
+	  	dcltype : dclNumeric
+		  		| dclIO
+		  		| dclChar
+		  		| dclOther
+		  		;
+		dclQualification :
+				  based
+				| static
+				| automatic
+				| controlled
+				| defined
+				| parameter
+				;
+		dclLayout:
+				  aligned
+				| unaligned
+				| connected
+				| unconnected
+				;
+				 
+	* is environmentspecparm the same as expr ?
+	
+	* Check if it is feasible to implement
+		put skip list('hello world');
+	  or
+	    display('hello world');
+	* Use glibc's syslog interface (from info libc:)
+		openlog::                      Open connection to Syslog
+		syslog; vsyslog::              Submit message to Syslog
+		closelog::                     Close connection to Syslog
+		setlogmask::                   Cause certain messages to be ignored
+	* Use *PROCESS to switch debug options on/off within the PL/I source code.
+		*process debug(scanner,preprocessor,parser);
+		
+Change log
+==========
+28-09-2007
+    * Uploaded screenshot showing Eclipse C/C++ development of pl1gcc
+27-09-2007
+    * In PLIParser.c, ensure return value is 1 if at least one error is found
+    * Auch, the following test cases failed:
+        Checking Error for  ./PL1_TEST_DCL.pl1
+        Checking Error for  ./PL1_TEST_IO.pl1
+        Checking Error for  ./PL1_TEST_KEYWORDS.pl1
+    * Update test cases to test pp keywords as variables
+26-09-2007
+    * In pl1-parser.y, added REPLACE to varname_kwpp
+13-09-2007
+    * Prepared Announce-0.0.15 and pl1gcc-0.0.15.index.html
+12-09-2007
+    * Explicitly check for return code for ppSetEndStmt.
+    * In pl1pp-parser.y, add DECLARE under the keywords.
+      this works without the lookahead because the preprocessor
+      does not (yet) support arrays.
+    * Added missing REPLACE to varname_kwpp
+11-09-2007
+    * Fix preprocessors statements where '%' is not the first token
+      For example this code snippet
+        %goto after1;
+        this is a comment 
+        %after1:;
+      gives these messages
+        found GOTO to (forwards) label after1, disabling preprocessor discarding
+        pp scanner: number of collected tokens 8
+        (File,line,column from,to)([0],91,0-4) offset from-to[1822-1826[    pp scanner: token[0]=832, text=this
+        (File,line,column from,to)([0],91,5-7) offset from-to[1827-1829[    pp scanner: token[1]=832, text=is
+        (File,line,column from,to)([0],91,8-9) offset from-to[1830-1831[    pp scanner: token[2]=1024, text=a
+        (File,line,column from,to)([0],91,10-17) offset from-to[1832-1839[  pp scanner: token[3]=832, text=comment
+        (File,line,column from,to)([0],93,0-1) offset from-to[1842-1843[    pp scanner: token[4]=37, text=%
+        (File,line,column from,to)([0],93,1-7) offset from-to[1843-1849[    pp scanner: token[5]=832, text=after1
+        (File,line,column from,to)([0],93,7-8) offset from-to[1849-1850[    pp scanner: token[6]=58, text=:
+        (File,line,column from,to)([0],93,8-9) offset from-to[1850-1851[    pp scanner: token[7]=59, text=;
+        invoking preprocessor via pl1pp_parser
+        Starting parse
+        Entering state 0
+        Reading a token: Next token is token VARNAME (: )
+        Preprocessor error at (File,line,column from,to)([0],91,0-4) offset from-to[1822-1826[  : syntax error, unexpected VARNAME, expecting '%'
+        Cleanup: discarding lookahead token VARNAME (: )
+        Stack now 0
+        Next token is token _SCANNER_ERROR_ (: )
+    * In pl1-scanner.l, change ppScanTokensForChar, so tokens can be disposed
+      while scanning for the char
+      Changed from
+        struct savedtokenlist *ppScanTokensForChar(struct anyTokenList *ppSaveTokensList, int find);
+        struct savedtokenlist *ppScanTokensForChar(
+            struct anyTokenList *ppSaveTokensList, int find, int dispose)
+          {
+            struct savedtokenlist *workTokens ;
+            /* look for ch */
+            for (workTokens=ppSaveTokensList->head; workTokens;workTokens=workTokens->next;)
+              {
+                if (workTokens->token==find)
+                  break;
+              }
+            return workTokens;
+          }
+      to        
+        #define PP_KEEP 0
+        #define PP_DISPOSE 1
+        struct savedtokenlist *ppScanTokensForChar(struct anyTokenList *ppSaveTokensList, int find, int dispose);
+        struct savedtokenlist *ppScanTokensForChar(
+            struct anyTokenList *ppSaveTokensList, int find, int dispose)
+          {
+            struct savedtokenlist *workTokens, *work;
+            /* look for ch */
+            for (workTokens=ppSaveTokensList->head; workTokens;)
+              {
+                if (workTokens->token==find)
+                  break;
+                if (dispose==PP_DISPOSE)
+                {
+                  work=workTokens;
+                  debugVerbose("disposing token %i: %s\n",work->token,work->string);
+                  free(work);
+                }
+                workTokens=workTokens->next;
+              }
+            return workTokens;
+          }
+    * Synchronize %tokens between p1lpp-parser and pl1-parser.
+      pl1pp-parser was:
+        /* 
+         * Note keep the token list in sync with pl1-parser.y
+         * 
+         * Token numbers higher than 0x3000 is only for the preprocessor,
+         * for example the INCLUDE and REPLACE are not used in pl1-parser.y
+         * 
+         */
+        %token ACTIVATE 0x3000 DEACTIVATE 0x3001 INCLUDE 0x3002 NOPRINT 0x3005 NOTE 0x3010 REPLACE 0x3015 
+        /* Tokens shared with pl1-parser.y : */
+        %token STR_CONSTANT 0x0310 NUM 0x0320 VARNAME 0x0340 
+        %token UNKNOWN 0x0350 CONCAT 0x0390 
+        %token BY 0x053f 
+        %token CHARACTER 0x055f
+        %token DECLARE 0x060f DO 0x0639
+        %token END 0x064c 
+        %token FIXED 0x0686
+        %token GOTO 0x0723
+        %token I 0x1000
+        %token PAGE 0x1109 PRINT 0x1129 SKIP 0x11a3 TO 0x11e3
+    * The full %token list is
+        %token ACTIVATE 0x3000 DEACTIVATE 0x3001 INCLUDE 0x3002 NOPRINT 0x3005 NOTE 0x3010 REPLACE 0x3015 
+        %token STR_CONSTANT 0x0310 NUM 0x0320 NUMFLOAT 0x0330 VARNAME 0x0340 
+        %token UNKNOWN 0x0350 AND 0x0360 NOT 0x0370 OR 0x0380 CONCAT 0x0390 
+        %token POWER 0x03a0 PTR 0x03b0 HANDLEPTR 0x03b3 SELFOP 0x03d0
+        %token GE 0x03e0 LE 0x03f0 NE 0x03f5
+        %token A 0x0400 ABNORMAL 0x0404 ADDBUFF 0x0408 ALIAS 0x040a ALIGNED 0x040f 
+        %token ALLOCATE 0x0414 ANYCONDITION 0x0418 AREA 0x041a ASCII 0x041f 
+        %token ASSEMBLER 0x0424 ASSIGNABLE 0x0428 ATTACH 0x042a ATTENTION 0x042f 
+        %token AUTOMATIC 0x0434
+        %token B 0x0500 B1 0x0503 B2 0x0504 B3 0x0505 B4 0x0506 BACKWARDS 0x050f 
+        %token BASED 0x0513 BEGIN_ 0x0516 BIGENDIAN 0x0519 BINARY 0x051c BIT 0x051f
+        %token BKWD 0x0523 BLKSIZE 0x0526 BUFFERED 0x0529 BUFFERS 0x052c BUFFOFF 0x052f
+        %token BUFND 0x0533 BUFNI 0x0536 BUFSP 0x0539 BUILTIN 0x053c BY 0x053f 
+        %token BYADDR 0x0543 BYVALUE 0x0546 BX 0x0549
+        %token C 0x0553 CALL 0x0556 CELL 0x0559 CDECL 0x055c CHARACTER 0x055f
+        %token CHARGRAPHIC 0x0563 CHECK 0x0569 CLOSE 0x056c COBOL 0x056f COLUMN 0x0573
+        %token COMPLEX 0x0576 CONDITION 0x0579 CONNECTED 0x0582
+        %token CONSECUTIVE 0x0583 CONSTANT 0x0586 CONTROLLED 0x0589 CONVERSION 0x058c
+        %token COPY 0x058f CTLASA 0x0593 CTL360 0x0596
+        %token D 0x0603 DATA 0x0606 DATE 0x0609 DB 0x060c DECLARE 0x060f
+        %token DECIMAL 0x0613 DEFAULT 0x0616 DEFINE 0x0619 DEFINED 0x061c
+        %token DELAY 0x061f DELETE 0x0623 DESCRIPTOR 0x0626 DESCRIPTORS 0x0629
+        %token DETACH 0x062c DIMENSION 0x062f DIRECT 0x0633 DISPLAY 0x0636
+        %token DO 0x0639 DOWNTHRU 0x063c
+        %token E 0x0643 EDIT 0x0646 ELSE 0x0649 END 0x064c ENDFILE 0x064f
+        %token ENDPAGE 0x0653 ENTRY 0x0656 ENVIRONMENT 0x0659 ERROR 0x065c
+        %token EVENT 0x065f EXCLUSIVE 0x0663 EXIT 0x0666 EXPORTS 0x0669 EXTERNAL  0x066c
+        %token F 0x066f FB 0x0673 FBS 0x0676 FETCH 0x0679 FETCHABLE 0x067c
+        %token FILE_ 0x067f FINISH 0x0683 FIXED 0x0686 FIXEDOVERFLOW 0x0689
+        %token FLOAT 0x0693 FLUSH 0x0696 FOREVER 0x0699 FORMAT 0x069c 
+        %token FORMAT_STMT 0x069f FORTRAN 0x0703 FROMALIEN 0x0706 FREE 0x0709
+        %token FROM 0x070c FS 0x070f
+        %token G 0x0713 GENERIC 0x0716 GENKEY 0x0719 GET 0x071c GO 0x071f
+        %token GOTO 0x0723 GRAPHIC 0x0726 GX 0x0729
+        %token HANDLE 0x0733 HEXADEC 0x0736
+        %token I 0x1000 IEEE 0x1003 IF 0x1006 IGNORE 0x1009 IMPORTED 0x100c
+        %token IN 0x100f INDEXAREA 0x1013 INDEXED 0x1016 INITIAL_ 0x1019
+        %token INLINE 0x101c INPUT 0x101f INTER 0x1023 INTERACTIVE 0x1026 
+        %token INTERNAL 0x1029 INTO 0x102c INVALIDOP 0x102f IRREDUCIBLE 0x1033 ITERATE 0x1036
+        %token KEY 0x1039 KEYED 0x103c KEYFROM 0x103f KEYLENGTH 0x1043 KEYLOC 0x1046 KEYTO  0x1049
+        %token LABEL 0x1053 LEAVE 0x1056 LIKE 0x1059 LIMITED 0x105c LINE 0x105f
+        %token LINESIZE 0x1063 LINKAGE 0x1066 LIST 0x1069 LITTLEENDIAN 0x106c
+        %token LOCAL 0x106f LOCATE 0x1073 LOOP 0x1076
+        %token M 0x1079 MAIN 0x107c
+        %token NAME 0x107f NCP 0x1083
+        %token NOCHARGRAPHIC 0x1086 NOCHECK 0x1089 NOCONVERSION 0x108c 
+        %token NODESCRIPTOR 0x108f NOEXECOPS 0x1093 NOFIXEDOVERFLOW 0x1096
+        %token NOINIT 0x1099 NOINLINE 0x109c  NOINVALIDOP 0x109f NOLOCK 0x10a3 
+        %token NONE 0x10a6 NONASSIGNABLE 0x10a9 NONCONNECTED 0x10ac NONVARYING 0x10af
+        %token NON_QUICK 0x10b3 NO_QUICK_BLOCKS 0x10b6
+        %token NOOVERFLOW 0x10b9 NORMAL 0x10bc
+        %token NOSIZE 0x10bf NOSUBSCRIPTRANGE 0x10c3 NOSTRINGRANGE 0x10c6 
+        %token NOSTRINGSIZE 0x10c9 NOUNDERFLOW 0x10cc NOWRITE 0x10cf 
+        %token NOZERODIVIDE 0x10d3
+        %token OFFSET 0x10d6 ON 0x10d9 OPEN 0x10dc OPTIONAL 0x10df OPTIONS 0x10e3
+        %token OPTLINK 0x10e6 ORDER 0x10e9 ORDINAL 0x10ec OTHERWISE 0x10ef 
+        %token OUTPUT 0x10f3 OVERFLOW_  0x10f6
+        %token P 0x10fc PACKAGE 0x10ff PACKED 0x1103 PACKED_DECIMAL 0x1106 PAGE 0x1109
+        %token PAGESIZE 0x110c PARAMETER 0x110f PASSWORD 0x1113 PENDING 0x1116
+        %token POINTER 0x1119 PICTURE 0x111c POSITION 0x111f PRECISION 0x1123
+        %token PRIORITY 0x1126 PRINT 0x1129 PROCEDURE 0x112c PUT 0x112f
+        %token R 0x1133 RANGE 0x1136 READ 0x1139 REAL 0x113c RECORD 0x113f
+        %token RECSIZE 0x1143 RECURSIVE 0x1146 REDUCIBLE 0x1149 REENTRANT 0x114c
+        %token REFER 0x114f REGIONAL 0x1153 RELEASE 0x1156 RENAME 0x1159
+        %token REORDER 0x115c REUSE 0x115f REPEAT 0x1163 REPLY 0x1166 REREAD 0x1169
+        %token RESERVED 0x116c RESERVES 0x116f RESIGNAL 0x1173 RETCODE 0x1176 RETURN 0x1179 
+        %token RETURNS 0x117c REVERT 0x117f REWRITE 0x1183
+        %token SCALARVARYING 0x1186 SELECT 0x1189 SEPARATE_STATIC 0x118c
+        %token SEQUENTIAL 0x118f SET 0x1193 SIGNAL 0x1196 SIGNED 0x1199 SIS 0x119c
+        %token SIZE 0x119f SKIP 0x11a3
+        %token SNAP 0x11a6 STATIC 0x11a9 STDCALL 0x11ac STOP 0x11af STORAGE 0x11b3
+        %token STREAM 0x11b6 STRING 0x11b9 STRINGRANGE 0x11bc STRINGSIZE 0x11bf
+        %token STRINGVALUE 0x11c3 STRUCTURE 0x11c6
+        %token SUB 0x11c9 SUBSCRIPTRANGE 0x11cc SUPPORT 0x11cf SYSTEM 0x11d3
+        %token TASK 0x11d6 THEN 0x11d9 THREAD 0x11dc TITLE 0x11df TO 0x11e3
+        %token TOTAL 0x11e6 TP 0x11e9 TRANSIENT 0x11ec TRANSMIT 0x11ef
+        %token TRKOFL 0x11f3 TSTACK 0x11f6 TYPE 0x11f9
+        %token U 0x11fc UNALIGNED 0x11ff UNBUFFERED 0x1203 UNCONNECTED 0x1206
+        %token UNDEFINEDFILE 0x1209 UNDERFLOW_ 0x120c UNION 0x120f UNLOCK 0x1213
+        %token UNSIGNED 0x1216 UNTIL 0x1219 UPDATE 0x121c UPTHRU 0x121f
+        %token V 0x1223 VALIDATE 0x1226 VALUE 0x1229 VARIABLE 0x122c VARYING 0x122f 
+        %token VARYINGZ 0x1233 VB 0x1236 VBS 0x1239 VS 0x123c VSAM 0x123f
+        %token WAIT 0x1243 WHEN 0x1246 WHILE 0x1249 WIDECHAR 0x124c WINMAIN 0x124f
+        %token WRITE 0x1253 WX 0x1256
+        %token ZERODIVIDE 0x1259
+        %token X 0x125c XN 0x125f XU 0x1263
+    * Synchronize  varname parser rule betwenn pl1-parser.y and pl1pp-parser.y: 
+        varname:
+                   VARNAME            { $$=$<s>1 ; }
+               |       varname_kw         { $$=$<s>1 ; }
+               |       varname_kwpp       { $$=$<s>1 ; }
+               |       varname_conditions { $$=$<s>1 ; }
+               ;
+               
+               
+        
+               /* Note: The varnames that are commented out, 
+                *       are resolved in the scanner 
+                *       and returned as token VARNAME 
+                */         
+        varname_kw:
+                     A
+                       | ABNORMAL
+                       | ADDBUFF
+                       | ALIAS
+                       | ALIGNED
+                       | ALLOCATE
+                       | ASCII
+                       | ASSIGNABLE
+                       | ASSEMBLER
+                       | ATTACH
+                       | AUTOMATIC
+                       | B
+                   | B1
+                       | B2
+                       | B3
+                       | B4
+                       | BACKWARDS
+                       | BASED
+                       | BEGIN_
+                       | BIGENDIAN
+                       | BINARY
+                       | BIT
+                       | BKWD
+                       | BLKSIZE
+                       | BUFFERED
+                       | BUFFERS
+                       | BUFFOFF
+                       | BUFND
+                       | BUFNI
+                       | BUFSP
+                       | BUILTIN
+                       | BY
+                       | BYADDR
+                       | BYVALUE
+                       | BX
+                       | C
+                       | CALL
+                       | CELL
+                       | CDECL
+                       | CHARACTER
+                       | CHARGRAPHIC
+                       | CLOSE
+                       | COBOL
+                       | COLUMN
+                       | COMPLEX
+                       | CONNECTED
+                       | CONSECUTIVE
+                       | CONSTANT
+                       | CONTROLLED
+                       | COPY
+                       | CTLASA
+                       | CTL360
+                       | D
+                       | DATA
+                       | DATE
+                       | DB
+               /*      | DECLARE */
+                       | DECIMAL
+                       | DEFINE
+                       | DEFINED
+               /*      | DEFAULT */
+                       | DELAY
+                       | DELETE
+                       | DESCRIPTOR
+                       | DESCRIPTORS
+                       | DETACH
+                       | DIMENSION
+                       | DISPLAY
+                       | DIRECT
+                       | DO
+                       | DOWNTHRU
+                       | E
+                       | EDIT
+                       | ELSE
+                       | END
+                       | ENTRY     /* note the statement variant is returned as ENTRY_STMT */
+                       | ENVIRONMENT
+                       | EVENT
+                       | EXCLUSIVE
+                       | EXPORTS
+                       | EXTERNAL
+                       | EXIT
+                       | F
+                       | FB
+                       | FS
+                       | FBS
+                       | FETCH
+                       | FETCHABLE
+                       | FILE_
+                       | FIXED
+                       | FLOAT
+                       | FLUSH
+                       | FOREVER
+                       | FORMAT    /* note the statement variant is returned as FORMAT_STMT */
+                       | FORTRAN
+                       | FREE
+                       | FROM
+                       | FROMALIEN
+                       | G
+                       | GENERIC
+                       | GENKEY
+                       | GET
+                       | GO
+                       | GOTO
+                       | GRAPHIC
+                       | GX
+                       | HANDLE
+                       | HEXADEC
+                       | I
+                       | IEEE
+                       | IF
+                       | IGNORE
+                       | IMPORTED
+                       | IN
+                       | INDEXAREA
+                       | INDEXED
+                       | INITIAL_
+                       | INLINE
+                       | INPUT
+                       | INTER
+                       | INTERACTIVE
+                       | INTERNAL
+                       | INTO
+                       | IRREDUCIBLE
+                       | ITERATE
+                       | KEYED
+                       | KEYLENGTH
+                       | KEYLOC
+                       | KEYTO
+                       | KEYFROM
+                       | LABEL
+                       | LEAVE
+                       | LIKE
+                       | LIMITED
+                       | LINE
+                       | LINESIZE
+                       | LINKAGE
+                       | LIST
+                       | LITTLEENDIAN
+                       | LOCAL
+                       | LOCATE
+                       | LOOP
+                       | M
+                       | MAIN
+                       | NCP
+                       | NOCHARGRAPHIC
+                       | NOCHECK
+                       | NOCONVERSION
+                       | NODESCRIPTOR
+                       | NOEXECOPS
+                       | NOFIXEDOVERFLOW
+                       | NOINIT
+                       | NOINLINE
+                       | NOINVALIDOP
+                       | NOLOCK
+                       | NONASSIGNABLE
+                       | NONCONNECTED
+                       | NONE
+                       | NONVARYING
+                       | NON_QUICK
+                       | NO_QUICK_BLOCKS
+                       | NOOVERFLOW
+                       | NORMAL
+                       | NOSIZE
+                       | NOSUBSCRIPTRANGE
+                       | NOSTRINGRANGE
+                       | NOSTRINGSIZE
+                       | NOUNDERFLOW
+                       | NOWRITE
+                       | NOZERODIVIDE
+                       | OFFSET
+                       | ON
+                       | OPEN
+                       | OPTIONAL
+                       | OPTIONS
+                       | OPTLINK
+                       | ORDER
+                       | ORDINAL
+               /*      | OTHERWISE */
+                       | OUTPUT
+                       | P
+                       | PACKAGE
+                       | PACKED
+                       | PACKED_DECIMAL
+                       | PAGE
+                       | PAGESIZE
+                       | PARAMETER
+                       | PASSWORD
+                       | PICTURE
+                       | POINTER
+                       | POSITION
+                       | PRECISION
+                       | PRINT
+                       | PRIORITY
+               /*      | PROCEDURE */
+                       | PUT
+                       | R
+                       | RANGE
+                       | REAL
+                       | READ
+                       | RECSIZE
+                       | RECURSIVE
+                       | REENTRANT
+                       | REDUCIBLE
+                       | REFER
+                       | REGIONAL
+                       | RELEASE
+                       | RENAME
+                       | REORDER
+                       | REPEAT
+                       | REPLY
+                       | REREAD
+                       | RESERVED
+                       | RESERVES
+                       | RESIGNAL
+                       | RETCODE
+                       | RETURN
+                       | RETURNS
+                       | REUSE
+                       | REVERT
+                       | REWRITE
+                       | SCALARVARYING
+                       | SELECT
+                       | SEPARATE_STATIC
+                       | SEQUENTIAL
+                       | SET
+                       | SIGNAL
+                       | SIGNED
+                       | SIS
+                       | SKIP
+               /*      | SNAP */
+                       | STATIC
+                       | STDCALL
+                       | STOP
+                       | STREAM
+                       | STRING
+                       | STRINGVALUE
+                       | STRUCTURE
+                       | SUB
+                       | SUPPORT
+                       | SYSTEM
+                       | TASK
+                       | THEN
+                       | THREAD
+                       | TITLE
+                       | TO
+                       | TOTAL
+                       | TP
+                       | TRANSIENT
+                       | TRKOFL
+                       | TSTACK
+                       | TYPE
+                       | U
+                       | UNALIGNED
+                       | UNBUFFERED
+                       | UNCONNECTED
+                       | UNDEFINEDFILE
+                       | UNION
+                       | UNLOCK
+                       | UNSIGNED
+                       | UNTIL
+                       | UPDATE
+                       | UPTHRU
+                       | V
+                       | VALIDATE
+                       | VALUE
+                       | VARIABLE
+                       | VARYING
+                       | VARYINGZ
+                       | VB
+                       | VBS
+                       | VS
+                       | VSAM
+                       | WAIT
+                       | WHEN
+                       | WHILE
+                       | WIDECHAR
+                       | WINMAIN
+                       | WRITE
+                       | WX
+                       | X
+                       | XN
+                       | XU
+                       ;
+        varname_kwpp: ACTIVATE
+                       | DEACTIVATE
+                       | INCLUDE
+                       | NOPRINT
+                       | NOTE
+                       | PAGE
+                       ;
+        varname_conditions:
+                         ANYCONDITION
+                       | AREA
+                       | ATTENTION
+                       | CHECK
+                       | CONDITION
+                       | CONVERSION
+                       | ENDFILE
+                       | ENDPAGE
+                       | ERROR
+                       | FINISH
+                       | FIXEDOVERFLOW
+                       | INVALIDOP
+                       | KEY
+                       | NAME
+                       | OVERFLOW_
+                       | PENDING
+                       | RECORD
+                       | SIZE
+                       | STORAGE
+                       | STRINGRANGE
+                       | STRINGSIZE
+                       | SUBSCRIPTRANGE
+                       | TRANSMIT
+                       | UNDERFLOW_
+                       | ZERODIVIDE
+                       ;
+    * In pl1-scanner.l, eliminate macro __dupyy, and use dupyy
+           note: the __dupyy is only until the preprocessor can handle
+                 kezwords as variable names.
+        /* 
+         * if ppGatherTokens is active, convert token to VARNAME 
+         *  
+         */
+        #define dupyy(t) \
+          { __dupyy(t); }
+        //  { if(ppCurrentContext->ppGatherTokens) {__dupyy(VARNAME);} else {__dupyy(t); } }
+    * Change helper macros in pl1-scanner.l
+    - specialkeywords
+      changed from 
+        #define specialKeyWord(a,b,c)               \
+        {                                           \
+          if (!(lookahead||ppCurrentContext->ppGatherTokens)          \
+           &&(enable_lookahead(prev_token,a)) \
+             )               \
+          { lookahead=1; /* enable token based lookahead */\
+            __dupyy(b);      \
+          }                  \
+          else               \
+          {                  \
+           __dupyy(c);       \
+          }                  \
+        }
+      to
+        #define specialKeyWord(a,b,c)               \
+        {                                           \
+          if (!(lookahead||ppCurrentContext->ppGatherTokens)          \
+           &&(enable_lookahead(prev_token,a)) \
+             )               \
+          { lookahead=1; /* enable token based lookahead */\
+            dupyy(b);      \
+          }                  \
+          else               \
+          {                  \
+           dupyy(c);       \
+          }                  \
+        }
+    * Remove special case of preprocessor keyword names in pl1-scanner.l
+        ACT(IVATE)?     { /* ACTIVATE is only a kw token for the preprocessor. */
+            if(ppCurrentContext->ppGatherTokens){ __dupyy(ACTIVATE);} else{ __dupyy(VARNAME);}}
+        BY              __dupyy(BY);
+        CHAR(ACTER)?    __dupyy(CHARACTER);
+        DCL|DECLARE { 
+            /*
+             If we see a 'dcl' inside a preprocessor directory, the
+             preprocessor will handle it.
+            */
+              if(ppCurrentContext->ppGatherTokens)
+              {
+                __dupyy(DECLARE);
+              }
+              else
+               specialKeyWord(DECLARE,DECLARE,VARNAME);
+            }
+        DEACT(IVATE)?       { /* DEACTIVATE is only a kw token for the preprocessor. */
+            if(ppCurrentContext->ppGatherTokens){ __dupyy(DEACTIVATE);} else{ __dupyy(VARNAME);}}
+        DO              { __dupyy(DO); /* END can be a preprocessor stmt */ }
+        END     { if(!ppCurrentContext->ppGatherTokens) lookahead=1;
+             
+            /* enable lookahead. This will catch cases for named 
+               END where the name is for example a condition name, 
+               as in END finish;
+             */
+                          __dupyy(END); /* END can be a preprocessor stmt */ 
+                        }
+        FIXED           __dupyy(FIXED);
+        GOTO            { __dupyy(GOTO); /* GOTO can be a preprocessor kw */ } 
+        INCLUDE        { /* INCLUDE is only a kw token for the preprocessor. */
+            if(ppCurrentContext->ppGatherTokens){ __dupyy(INCLUDE);} else{ __dupyy(VARNAME);}}
+        NOPRINT     { /* NOPRINT is only a kw token for the preprocessor. */
+                      if(ppCurrentContext->ppGatherTokens){ __dupyy(NOPRINT);} else{ __dupyy(VARNAME);}
+                    }
+        NOTE        { /* NOTE is only a kw token for the preprocessor. */
+                      if(ppCurrentContext->ppGatherTokens){ __dupyy(NOTE);} else{ __dupyy(VARNAME);}
+                    }
+        PAGE            { __dupyy(PAGE); /* PAGE can be a PP keyword */}
+        PRINT           { __dupyy(PRINT); /* Print can be a PP keyword */}
+        REPLACE         { /* REPLACE is only a kw token for the preprocessor */
+            if(ppCurrentContext->ppGatherTokens){ __dupyy(REPLACE);} else{ __dupyy(VARNAME); }}
+        SKIP            { __dupyy(SKIP); /* SKIP can be a PP keyword */}
+        TO              __dupyy(TO);
+        {NBR}           __dupyy(NUM);
+        "."{NBR}{NBREE}         |
+        "."{NBR}                |
+        {NBR}{NBREE}            |
+        {NBR}"."                |
+        {NBR}"."{NBREE}         |
+        {NBR}"."{NBR}{NBREE}    |
+        {NBR}"."{NBR}           __dupyy(NUMFLOAT); /* consider to let pl1.y handle these combinations */
+        "||"|"!!"       __dupyy(CONCAT);
+        "**"            __dupyy(POWER);
+        "&"             __dupyy(AND);
+        "|"|"!"         __dupyy(OR);
+        "\xAC"|"^"|"~"      {
+          /* 
+             NOTE: the character symbol -. is not supported by all editors 
+             and debuggers.  In the debugger I use (DDD a very popular Linux
+             debugger), this symbol causes the rest of the file to not
+             be displayed.   This symbol isn't even on US standard keyboards :(
+             Obviously we should support it, but placing in this file makes 
+             it impossible to run in a debugger, since DDD won't show the 
+             whole file (nothing after the point where this symbol is found
+             in the input).
+        
+             To get around this I've replaced it with a hex character string
+             "\xAC" which is effectively the very same thing, only it allows
+             editors/debuggers which don't support that character to keep 
+             working.
+        
+          */
+          __dupyy(NOT);
+        }
+        "\xAC<"|"^<"|"~<"       __dupyy(GE);
+        ">="                    __dupyy(GE);
+        "\xAC>"|"^>"|"~>"       __dupyy(LE);
+        "<="                    __dupyy(LE);
+        "<>"|"\xAC="|"^="|"~="  {
+          /* 
+             NOTE: NE is also exlusive or and assign in the context
+             of a self referencing assignment statement.  See note 
+             below.
+          */
+          __dupyy(NE);
+        }
+        "->"                __dupyy(PTR);
+        "=>"                __dupyy(HANDLEPTR);
+        [+\-*/\|!&]=        __dupyy(SELFOP);
+        "||="|"**="|"!!="   __dupyy(SELFOP);
+        [,.()<>=\-+*/]      __dupyy(*yytext);
+        ":"         {  /* C O L O N */
+          __dupyy(*yytext);
+        ";"         {  /* S E M I   C O L O N  */
+          __dupyy(*yytext); 
+        {VARNAME}       __dupyy(VARNAME);
+        "%"             {   /* P R E P R O C E S S O R */
+          if(!ppCurrentContext->ppGatherTokens)
+          {  debugLexer("scanner: enabling preprocessor scanning of tokens.\n");
+             ppCurrentContext->ppGatherTokens=1;
+          }
+          __dupyy(*yytext);
+        }
+        <QUOTE>"'"          { BEGIN INITIAL; 
+                              __dupyy(STR_CONSTANT); 
+                            }
+        <QUOTE_D>"\"\""     yymore();
+        <QUOTE_D>[^\"\n\r]* yymore();
+        <QUOTE_D>\n|\r      { yymore(); l$++; c$=0; }
+        <QUOTE_D>"\""       { BEGIN INITIAL; 
+                              __dupyy(STR_CONSTANT); 
+                            }
+        .       {   /* default rule: return UNKNOWN */ 
+                  yyerror(NULL,yyscanner
+                                 , sprintfString("Unmatched character met in input stream hex value is %x\n",*yytext)
+                                 );
+                  __dupyy(UNKNOWN); 
+                }
+    * In pl1-scanner.l, fix error in function hasMoretokens, when showing the tokens
+      Was
+        debugLexer("%s",sprintf_yylloc(yyget_lloc(yyscanner))); 
+        debugLexer("\tToken:%i\t>%s<\n",out_token,yyget_lval(yyscanner)->s);
+      change to
+        debugLexer("%s",sprintf_yylloc(yyget_lloc(yyscanner))); 
+        debugLexer("\tToken:%i\t>%s<\n",*out_token,yyget_lval(yyscanner)->s);
+      since the out_token is declared as:
+        int *out_token
+      and the address of the out_token is really not interesting :-) 
+10-09-2007
+    * In pl1-scanner.l, actually check return code from pl1pp-parser:
+      in function evaluatePreprocessor, added IF statement.
+         int pl1pprc=pl1pp_parser(*ppSaveTokensList,*ppCurrentContext);
+         /* Analyze result of preprocessor */
+            if(pl1pprc)
+            { /* Preprocessor error */
+                goto out_error ;
+            }
+            else
+06-09-2007
+    * Oh freude, all tests are giving rc=OK again.
+      time to cut a release
+    * This test program
+        %DO I = 1 to 7;
+         %note('I',"loop variable is "!!i);
+        %END; 
+    - gives these wonderful info messages in stdout
+        *** information ***
+        loop variable is 1
+        loop variable is 2
+        loop variable is 3
+        loop variable is 4
+        loop variable is 5
+        loop variable is 6
+        loop variable is 7      
+    * in pl1-scanner.l, in macro YY_USER_INIT, always push at least one state.
+    - Added to YY_USER_INIT:
+          /* ensure a state in stacked */           \
+          yy_push_state(INITIAL,yyscanner);         \    
+    - YY_USER_INIT is now
+        #define YY_USER_INIT                          \
+        {                                             \
+            /* init look ahead */                 \
+            lookahead=0;                          \
+            ppCollectedTokensList=NULL;           \
+            ppSaveTokensList=NULL;                \
+            lahSaveTokensList=NULL;               \
+            /* init of location tracking ... */       \
+            l$=1; c$=0; o$=0; sl$=-1; sc$=-1; so$=-1; \
+            prev_token=-1;                            \
+            /* prepreocessor communication area */    \
+            ppCurrentContext=newppContextAnchor();                    \
+                ppCurrentContext->ppGatherTokens=0;                         \
+                ppCurrentContext->ppScanForLabel=NULL;                      \
+            /* include structures */                  \
+            includeCount=0;                           \
+            currentIncludeFile=NULL;         \
+            /* include stack */                       \
+            currentScannerBufferList=NULL;            \
+            /* ensure a state in stacked */           \
+            yy_push_state(INITIAL,yyscanner);         \    
+        }
+    * in scanner state <PP_DOLOOP>, ensure current token is the last token
+      of the converted string:
+            for(;ppCurrentContext->loopCurrentToken;ppCurrentContext->loopCurrentToken=ppCurrentContext->loopCurrentToken->next)
+            {
+              if (*ppCurrentContext->loopCurrentToken->string==';') break;
+            }
+    - the <PP_DOLOOP> is now:
+            <PP_DOLOOP>.|\n|\r {
+                int i ;
+                /* as long we are in this scanner state, put the character back on the stack */
+                unput(*yytext);
+            printf("PP_DOLOOP 01 start \n");
+                if(ppCurrentContext->loopCurrentToken==NULL)
+                { // start of iteration
+            printf("PP_DOLOOP 02 start iteration loopCurrentToken is NULL, set loopvarname %s to loopstartvalue %i \n",ppCurrentContext->loopVarname, ppCurrentContext->loopStartValue);
+                  ppSetIntValue(ppCurrentContext->loopVarname, ppCurrentContext->loopStartValue, yyget_lloc(yyscanner));
+                  // check initial condition
+                  if (ppCurrentContext->loopStartValue<=ppCurrentContext->loopEndValue)
+                      ppCurrentContext->loopCurrentToken=ppCollectedTokensList->head;
+                }
+                else
+                { // next token within same iteration
+            printf("PP_DOLOOP 03 next token within same iteration \n");            
+                  ppCurrentContext->loopCurrentToken=ppCurrentContext->loopCurrentToken->next;
+                }
+                // if loopCurentToken is NULL here, then the loop is done.
+                // and a new iteration should be started.
+                if(ppCurrentContext->loopCurrentToken==NULL)
+                { // increment loop variable with one
+                  // compare to loopendvalue
+                  // if still true, set loopCurrentToken to head of saved list
+                  i = ppGetIntValue(ppCurrentContext->loopVarname, yyget_lloc(yyscanner));
+                  printf("PP_DOLOOP 04 loop is done, increasing loop counter before %i, ",i);
+                  i++;
+                  ppSetIntValue(ppCurrentContext->loopVarname, i, yyget_lloc(yyscanner));
+                  printf("after %i\n",i);
+                  if (i<=ppCurrentContext->loopEndValue)
+                  {  ppCurrentContext->loopCurrentToken=ppCollectedTokensList->head;
+            printf("PP_DOLOOP 05 loop condition stil true, resetting loopcurrenttoken to head of list \n");
+                  }
+                  else
+                  {  // Loop is completely done.
+                     // clean up, and BEGIN INITIAL;
+                     BEGIN INITIAL ;
+            printf("PP_DOLOOP 06 loop completely done, BEGIN INITIAL \n");                     
+                  }
+                }                  
+                /*
+                 * Return token to parser.
+                 * ensure pp variables get expanded.
+                 * if the token gets expanded, then the function ppExpandToken will 
+                 * allocate a new buffer that will be processed by flex
+                 * 
+                 */
+            printf("PP_DOLOOP 07 before returning to parser \n");            
+                if(ppCurrentContext->loopCurrentToken)
+                { 
+            printf("PP_DOLOOP 08 ok we have a token %i (%s)\n",ppCurrentContext->loopCurrentToken->token,ppCurrentContext->loopCurrentToken->string);
+                  if(*ppCurrentContext->loopCurrentToken->string =='%')
+                  {
+            printf("PP_DOLOOP 09 first token is the preprocessor percentage ");
+                      /*
+                       * the sequence of tokens are for the preprocessor.
+                       */
+                      /* 
+                       * get the preprocessor statement as text and process it 
+                       */
+                    char *work=savedtokenListStmtAsString(ppCurrentContext->loopCurrentToken);
+            printf(", tokens as string %s",work);        
+                    /* ppCurrentContext->loopCurrentToken to the last token in the converted list */
+                    for(;ppCurrentContext->loopCurrentToken;ppCurrentContext->loopCurrentToken=ppCurrentContext->loopCurrentToken->next)
+                    {
+                      if (*ppCurrentContext->loopCurrentToken->string==';') break;
+                    }
+                    /* look at ppExpandText */
+                    /* ok, we got the value, now return it to the scanner */
+                    /* push the new buffer, and simulate each,
+                     * macro expansion as an include file.
+                     * The buffer will be popped by the <<EOF>> rule.
+                     */
+                    struct PLIParserIncludeFile *tmpIncludeFile = currentIncludeFile;
+                    currentIncludeFile=addIncludeFile(ppCurrentContext->ppp->includefilelist
+                                                         , INCTYPE_PPVAR
+                                                         , work
+                                                         , tmpIncludeFile
+                                                         , yyget_lloc(yyscanner)); /* check location of text variable */
+                    stackCurrentBuffer(yyscanner,tmpIncludeFile); 
+                    includeCount++;
+                    /* notes
+                    * -----
+                    *    yy_scan_string, copies the parameter, and do yy_switch_to_buffer() 
+                    *    The delete of the buffer returned by yy_scan_string is completely
+                    *    handled in the <<EOF>> scanner rule.
+                    */
+                    yy_scan_string (work, yyscanner);
+                    yy_push_state(INITIAL,yyscanner);
+            printf(", scanning string, pushing state and switching to INITIAL \n");                                         
+                  }
+                  else
+                  if(ppExpandTokenText(ppCurrentContext->loopCurrentToken->token,ppCurrentContext->loopCurrentToken->string,yyscanner)==0)
+                  {  // no expansion
+            printf("PP_DOLOOP 10 token does not need preprocessor expansion (ppExpandTokenText==0) returning token to parser \n");            
+                    memcpy(yyget_lloc(yyscanner),ppCurrentContext->loopCurrentToken->locations,sizeof(YYLTYPE));
+                    yyget_lval(yyscanner)->s=strdup(ppCurrentContext->loopCurrentToken->string);
+                    debugVerbose("%s",sprintf_yylloc(yyget_lloc(yyscanner)));
+                    debugLexer("\tToken:%i\t>%s<\n",ppCurrentContext->loopCurrentToken->token,yyget_lval(yyscanner)->s);
+                    return ppCurrentContext->loopCurrentToken->token;
+                  }
+                  else
+                  {
+            printf("PP_DOLOOP 11 token expanded by ppExpandToken, push current state and switch to INITIAL \n");            
+                    /*
+                     * The buffer has been allocated, and flex is ready to scan the text.
+                     * Now we have stack the state PP_DOLOOP, and set the current state to INITIAL
+                     * 
+                     */
+                    yy_push_state(INITIAL,yyscanner);
+                  }
+            printf("PP_DOLOOP 12 end of token processning \n");            
+               }
+            printf("PP_DOLOOP 13 end of PP_DOLOOP \n");            
+            }
+05-09-2007
+    * figuring out why the NOTE preprocessor token is passed to the normal parser. 
+        evaluatePreprocessor returns 0 
+        evaluatePreprocessor returns 2 
+        evaluatePreprocessor returns 2 
+        evaluatePreprocessor returns 2 
+        evaluatePreprocessor returns 4 
+        PP_DOLOOP 01 start 
+        PP_DOLOOP 02 start iteration loopCurrentToken is NULL, set loopvarname I to loopstartvalue 1 
+        PP_DOLOOP 07 before returning to parser 
+        PP_DOLOOP 08 ok we have a token 4399 (put)
+        PP_DOLOOP 10 token does not need preprocessor expansion (ppExpandTokenText==0) returning token to parser 
+        PP_DOLOOP 01 start 
+        PP_DOLOOP 03 next token within same iteration 
+        PP_DOLOOP 07 before returning to parser 
+        PP_DOLOOP 08 ok we have a token 4515 (skip)
+        PP_DOLOOP 10 token does not need preprocessor expansion (ppExpandTokenText==0) returning token to parser 
+        PP_DOLOOP 01 start 
+        PP_DOLOOP 03 next token within same iteration 
+        PP_DOLOOP 07 before returning to parser 
+        PP_DOLOOP 08 ok we have a token 4201 (list)
+        PP_DOLOOP 10 token does not need preprocessor expansion (ppExpandTokenText==0) returning token to parser 
+        PP_DOLOOP 01 start 
+        PP_DOLOOP 03 next token within same iteration 
+        PP_DOLOOP 07 before returning to parser 
+        PP_DOLOOP 08 ok we have a token 40 (()
+        PP_DOLOOP 10 token does not need preprocessor expansion (ppExpandTokenText==0) returning token to parser 
+        PP_DOLOOP 01 start 
+        PP_DOLOOP 03 next token within same iteration 
+        PP_DOLOOP 07 before returning to parser 
+        PP_DOLOOP 08 ok we have a token 4096 (i)
+        PP_DOLOOP 11 token expanded by ppExpandToken, push current state and switch to INITIAL 
+        PP_DOLOOP 12 end of token processning 
+        PP_DOLOOP 13 end of PP_DOLOOP 
+        PP_DOLOOP 01 start 
+        PP_DOLOOP 03 next token within same iteration 
+        PP_DOLOOP 07 before returning to parser 
+        PP_DOLOOP 08 ok we have a token 41 ())
+        PP_DOLOOP 10 token does not need preprocessor expansion (ppExpandTokenText==0) returning token to parser 
+        PP_DOLOOP 01 start 
+        PP_DOLOOP 03 next token within same iteration 
+        PP_DOLOOP 07 before returning to parser 
+        PP_DOLOOP 08 ok we have a token 59 (;)
+        PP_DOLOOP 10 token does not need preprocessor expansion (ppExpandTokenText==0) returning token to parser 
+        PP_DOLOOP 01 start 
+        PP_DOLOOP 03 next token within same iteration 
+        PP_DOLOOP 07 before returning to parser 
+        PP_DOLOOP 08 ok we have a token 37 (%)
+        PP_DOLOOP 09 first token is the preprocessor percentage , tokens as string % note ( 'I' , 'loop variable is ' !! i ) ;, scanning string, pushing state and switching to INITIAL 
+        PP_DOLOOP 12 end of token processning 
+        PP_DOLOOP 13 end of PP_DOLOOP 
+        evaluatePreprocessor returns 0 
+        PP_DOLOOP 01 start 
+        PP_DOLOOP 03 next token within same iteration 
+        PP_DOLOOP 07 before returning to parser 
+        PP_DOLOOP 08 ok we have a token 12304 (note)
+        PP_DOLOOP 10 token does not need preprocessor expansion (ppExpandTokenText==0) returning token to parser 
+        *** errors ***
+        Error at (File,line,column from,to)([0],12,2-6) offset from-to[133-137[ : syntax error, unexpected $undefined, expecting $end
+    * Af adding this trace to the <PP_DOLOOP> scanner state, then is is clear, that after the
+      transformation of the tokens to a string, then the tokens must be freed, to prevent
+      that the preprocessor tokens are passed to the normal parser (doh!!!!)
+  * chasing weird preprocessor errors in pp-parser
+    Entering state 116
+    Reading a token: Next token is token ';' (: )
+    Reducing stack by rule 30 (line 154):
+       $1 = nterm varname (: )
+       $2 = token '=' (: )
+       $3 = nterm expr (: )
+       $4 = token TO (: )
+       $5 = nterm expr (: )
+    $$$ ppSetDoStmt level 0 for loop variable I, from 1, to 7
+    $$$ ppFindDCLName I
+    $$$ ppFindDCLNameList I
+    $$$ i: 0, name: I, w->name: i, strcasecmp(name,w->name): 0
+    $$$ ppSetIntValue Assigning I (i) to int value 1
+    Stack now 0 1 14
+    Error: popping token DO (: )
+    Stack now 0 1
+    Error: popping token '%' (: )
+    Stack now 0
+    Cleanup: discarding lookahead token ';' (: )
+    Stack now 0
+    here is the $$ -> dostmt missing
+     chasing the ghost
+    1) remove tabs  
+        dostmt: varname '=' expr TO expr { if(!ppSetDoStmt($1,$3,$5,&@1)) YYERROR; } 
+    => same error
+    2) replace "if" with "printf"
+        dostmt: varname '=' expr TO expr { printf("if(!ppSetDoStmt($1,$3,$5,&@1)) YYERROR;\n"); }
+    => now it works.
+        Entering state 116
+        Reading a token: Next token is token ';' (: )
+        Reducing stack by rule 30 (line 153):
+           $1 = nterm varname (: )
+           $2 = token '=' (: )
+           $3 = nterm expr (: )
+           $4 = token TO (: )
+           $5 = nterm expr (: )
+        -> $$ = nterm dostmt (: )
+    3)  replace ppDoStmt with return
+        int ppSetDoStmt(char *loopvarname, int fromexpr, int toexpr, YYLTYPE *locp)
+          {
+            char *buf;
+            return 0;
+        ...
+        }
+    => error
+        Entering state 116
+        Reading a token: Next token is token ';' (: )
+        Reducing stack by rule 30 (line 153):
+           $1 = nterm varname (: )
+           $2 = token '=' (: )
+           $3 = nterm expr (: )
+           $4 = token TO (: )
+           $5 = nterm expr (: )
+        Stack now 0 1 14
+        Error: popping token DO (: )
+        Stack now 0 1
+        Error: popping token '%' (: )
+        Stack now 0
+        Cleanup: discarding lookahead token ';' (: )
+        Stack now 0
+    4) remove return 0, and add {} around YYERROR in rule
+        dostmt: varname '=' expr TO expr { if(!ppSetDoStmt($1,$3,$5,&@1)) {YYERROR;} }
+    => same error
+    so something in the call to ppSetDoStmt makes bison go crazy, lets find out why.
+    5) replace call to ppSetDoStmt with a local stub 
+        dostmt: varname '=' expr TO expr { if(!ppSetDoStmtStub($1,$3,$5,&@1)) YYERROR; }
+        int ppSetDoStmtStub(char *loopvarname, int fromexpr, int toexpr, YYLTYPE *locp)
+          {
+           return ppSetDoStmt(loopvarname,fromexpr,toexpr,locp); 
+          }
+    => same error 
+    6) make an explicit check of the return code
+        dostmt: varname '=' expr TO expr { if(ppSetDoStmt($1,$3,$5,&@1)<0) YYERROR; }
+    => YES !
+    Entering state 116
+    Reading a token: Next token is token ';' (: )
+    Reducing stack by rule 30 (line 153):
+       $1 = nterm varname (: )
+       $2 = token '=' (: )
+       $3 = nterm expr (: )
+       $4 = token TO (: )
+       $5 = nterm expr (: )
+    -> $$ = nterm dostmt (: )
+    Confirms the Murphy law:
+    "The longer you spend searching for an error, the simpler the error"
+04-09-2007
+    chasing weird preprocessor errors in pp-parser
+03-09-2007
+    chasing weird preprocessor errors in pp-parser
+30-08-2007
+    * In ScannerUtil.c, added function to add quotes back to a token of STR_CONSTANT
+        extern char * q_requote_str(char *s);
+28-08-2007
+    * In pl1-scanner.l, added new scanner state PP_DOLOOP
+        <PP_DOLOOP>.|\n|\r {
+            int i ;
+            /* as long we are in this scanner state, put the character back on the stack */
+            unput(*yytext);
+            if(ppCurrentContext->loopCurrentToken==NULL)
+            { // start of iteration
+              ppSetIntValue(ppCurrentContext->loopVarname, ppCurrentContext->loopStartValue, yyget_lloc(yyscanner));
+              // check initial condition
+              if (ppCurrentContext->loopStartValue<=ppCurrentContext->loopEndValue)
+                  ppCurrentContext->loopCurrentToken=ppCollectedTokensList->head;
+            }
+            else
+            { // next token within same iteration
+              ppCurrentContext->loopCurrentToken=ppCurrentContext->loopCurrentToken->next;
+            }
+            // if loopCurentToken is NULL here, then the loop is done.
+            // and a new iteration should be started.
+            if(ppCurrentContext->loopCurrentToken==NULL)
+            { // increment loop variable with one
+              // compare to loopendvalue
+              // if still true, set loopCurrentToken to head of saved list
+              i = ppGetIntValue(ppCurrentContext->loopVarname, yyget_lloc(yyscanner));
+              i++;
+              ppSetIntValue(ppCurrentContext->loopVarname, i, yyget_lloc(yyscanner));
+              if (i<=ppCurrentContext->loopEndValue)
+              {  ppCurrentContext->loopCurrentToken=ppCollectedTokensList->head;
+              }
+              else
+              {  // Loop is completely done.
+                 // clean up, and BEGIN INITIAL;
+                 BEGIN INITIAL ;
+              }
+            }
+            /*
+             * Return token to parser.
+             * ensure pp variables get expanded.
+             * if the token gets expanded, then the function ppExpandToken will 
+             * allocate a new buffer that will be processed by flex
+             * 
+             */
+            if(ppCurrentContext->loopCurrentToken)
+            { 
+              if(ppExpandTokenText(ppCurrentContext->loopCurrentToken->token,ppCurrentContext->loopCurrentToken->string,yyscanner)==0)
+              {  // no expansion
+                memcpy(yyget_lloc(yyscanner),ppCurrentContext->loopCurrentToken->locations,sizeof(YYLTYPE));
+                yyget_lval(yyscanner)->s=strdup(ppCurrentContext->loopCurrentToken->string);
+                return ppCurrentContext->loopCurrentToken->token;
+              }
+            }
+        }
+    * From pl1-scanner.l, removed function
+        int ppDoLoop( char *ppLoopVarname, int   loopStartValue, int   loopEndValue, struct anyTokenList *list,yyscan_t yyscanner);
+        /*
+         * ppDoLoop does the repetition of the tokens.
+         */
+        int ppDoLoop(char *ppLoopVarname, int loopStartValue, int loopEndValue,
+            struct anyTokenList *list, yyscan_t yyscanner)
+          {
+            int i;
+            char *work;
+            work=tokenListAsString(list);
+            debugLexer(
+                "ppDoLoop: setup execution of loop. ppVarname %s, start value %i, end value %i, loop text \"%s\"\n",
+                ppLoopVarname, loopStartValue, loopEndValue, work);
+            debugLexer("Freeing token lists and cleanup\n");
+            emptyAnyTokenList(list);
+            /* TODO: update pp dcl variables with value, and reevaluate before adding 1 */
+            for (i=loopStartValue; i<=loopEndValue;)
+              { /* TODO: Set value of pp variable */
+                ppSetIntValue(ppLoopVarname, i, yyget_lloc(yyscanner));
+                debugLexer("ppDoLoop: loop %i \n", i);
+                /* NOTE: Keep the macro expansion code in sync with ppExpandText */
+                /* ok, we got the value, now return it to the scanner */
+                /* push the new buffer, and simulate each,
+                 * macro expansion as an include file.
+                 * The buffer will be popped by the <<EOF>> rule.
+                 */
+                struct PLIParserIncludeFile *tmpIncludeFile = currentIncludeFile;
+                currentIncludeFile=addIncludeFile(
+                    ppCurrentContext->ppp->includefilelist, INCTYPE_PPVAR, work,
+                    tmpIncludeFile, yyget_lloc(yyscanner)); /* check location of text variable */
+                stackCurrentBuffer(yyscanner, tmpIncludeFile);
+                includeCount++;
+                /* notes
+                 * -----
+                 *    yy_scan_string, copies the parameter, and do yy_switch_to_buffer() 
+                 *    The delete of the buffer returned by yy_scan_string is completely
+                 *    handled in the <<EOF>> scanner rule.
+                 * Problem
+                 * -------
+                 *    The current logic, creates a number of individual buffers, these
+                 *    buffers will be processed _after_ the function returns.
+                 *    This has some unfortunate features (errors, flaws etc) like, the 
+                 *    buffers are scanned from last to first, in reverse order. Plus
+                 *    the loop will only execute once.
+                 *    In short it SUCKS!
+                 */
+                yy_scan_string (work, yyscanner);
+                /* get value of ppvar.
+                 * add one
+                 */
+                i = ppGetIntValue(ppLoopVarname, yyget_lloc(yyscanner));
+                i++;
+              }
+            ppSetIntValue(ppLoopVarname, i, yyget_lloc(yyscanner));
+            free(work);
+            return 0;
+          }
+    * Change macro dupyy 
+      from
+        #define dupyy(t) \
+          { if(ppCurrentContext->ppGatherTokens) {__dupyy(VARNAME);} else {__dupyy(t); } }
+      to
+        #define dupyy(t) \
+          { __dupyy(t); }
+      this means that within the preprocessor parser, all the tokens that the
+      scanner can recognize has to be added to the varname rule
+    * In pl1pp-parser.y, added, as a start
+        %token I 0x1000
+      and added to rule varname
+              |       I               {$$=$<s>1;}
+    * some new happend. message from flex:
+    - "flex scanner push-back overflow". you used `unput()' to push back
+      so much text that the scanner's buffer could not hold both the
+      pushed-back text and the current token in `yytext'.  Ideally the
+      scanner should dynamically resize the buffer in this case, but at
+      present it does not.
+    * In pl1-scanner.l, added
+        %option stack
+      this enables the following functions (from info flex):
+      The following routines are available for manipulating stacks of
+      start conditions:
+      - Function: void yy_push_state ( int `new_state' )
+             pushes the current start condition onto the top of the start
+             condition stack and switches to `new_state' as though you had used
+             `BEGIN new_state' (recall that start condition names are also
+             integers).
+       - Function: void yy_pop_state ()
+             pops the top of the stack and switches to it via `BEGIN'.
+       - Function: int yy_top_state ()
+             returns the top of the stack without altering the stack's contents.
+       The start condition stack grows dynamically and so has no built-in
+       size limitation.  If memory is exhausted, program execution aborts.
+       To use start condition stacks, your scanner must include a `%option
+       stack' directive (*note Scanner Options::).
+    * In pl1-scanner.l, change <<EOF>> rule:
+      from
+        <<EOF>>             { debugLexer("<<EOF>> met, include count %i\n",includeCount);
+          /*
+           *  The <<EOF>> rule serves several purposes
+           *    1: detect EOF during preprocessor scan
+           *    2: EOF of an %INCLUDE file or preprocessor expansion
+           *    3: EOF while returning saved tokens
+           *    4: Really EOF of main file 
+           */
+            switch(evaluateEOFType(yyscanner, &includeCount, lookahead
+                    , ppSaveTokensList, currentIncludeFile
+                    , ppCurrentContext
+                ))
+              { case 1: /* EOF during preprocessor scan */
+                /* if the parser request another token, ensure that we are in a error state */
+                BEGIN _MUST_TERMINATE_;
+                /* Let the parser deal with the error */
+                return _SCANNER_ERROR_;
+                break;
+                case 2: /* EOF detected included file or buffer */
+                if ( !YY_CURRENT_BUFFER )
+                  { debugLexer("ok really end of file ");
+                    yyterminate();
+                  }
+                break;
+                case 3: /* EOF while returning saved tokens */
+                /* unput a pseudo ' ', to ensure scanner
+                 * continues to return the saved tokens.
+                 * Note the ' '  will just get eaten by
+                 * the scanner.
+                 */
+                unput(' ');
+                BEGIN LEXRETURNSAVEDTOKENS;
+                break;
+                case 4: /* Really EOF of main file */
+                yyterminate();
+                break;
+              }
+        
+            /* if we make it through to here, then it means
+             * the scanner is ready to continue scanning from
+             * a stacked input file 
+             */
+        }
+      to
+        <<EOF>>             { debugLexer("<<EOF>> met, include count %i\n",includeCount);
+          /*
+           *  The <<EOF>> rule serves several purposes
+           *    1: detect EOF during preprocessor scan
+           *    2: EOF of an %INCLUDE file or preprocessor expansion
+           *    3: EOF while returning saved tokens
+           *    4: Really EOF of main file 
+           */
+            switch(evaluateEOFType(yyscanner, &includeCount, lookahead
+                    , ppSaveTokensList, currentIncludeFile
+                    , ppCurrentContext
+                ))
+              { case 1: /* EOF during preprocessor scan */
+                /* if the parser request another token, ensure that we are in a error state */
+                BEGIN _MUST_TERMINATE_;
+                /* Let the parser deal with the error */
+                return _SCANNER_ERROR_;
+                break;
+                case 2: /* EOF detected included file or buffer */
+                if ( !YY_CURRENT_BUFFER )
+                  { debugLexer("ok really end of file ");
+                    yyterminate();
+                  }
+                /*
+                 * Restore scanner state to previous, if the do_loop was active.
+                 * This means EOF met while expanding an preprocessor token, and
+                 * now return to the processing of the %DO ... %END, as done by
+                 * the state PP_DOLOOP
+                 * 
+                 */
+                if(yy_top_state(yyscanner)==PP_DOLOOP) yy_pop_state(yyscanner);
+                break;
+                case 3: /* EOF while returning saved tokens */
+                /* unput a pseudo ' ', to ensure scanner
+                 * continues to return the saved tokens.
+                 * Note the ' '  will just get eaten by
+                 * the scanner.
+                 */
+                unput(' ');
+                BEGIN LEXRETURNSAVEDTOKENS;
+                break;
+                case 4: /* Really EOF of main file */
+                yyterminate();
+                break;
+              }
+        
+            /* if we make it through to here, then it means
+             * the scanner is ready to continue scanning from
+             * a stacked input file 
+             */
+        }
+22-08-2007
+    * In ppVariable.c, consolidate use of pp_yyerror and addErrorMessage
+      Basically change
+        pp_yyerror(locp,0 //scannerContext->ppp->flexScanner
+         ,sprintfString("\%INCLUDE failed for filename %s\n",fileName));
+      to       
+        addErrorMessage(scannerContext->ppp
+        , sprintfString("Preprocessor error at (%s): \%INCLUDE failed for filename %s\n"
+        , sprintf_yyloc(locp),fileName));
+    * In pl1pp-parser.y, allow variable names in constant expressions.
+      Changed rule exprconst, to allow 'poor mans' attribute check.
+        exprconst:
+                exprconst CONCAT exprconst {$$=malloc(strlen($1)+strlen($3)+1); strcpy($$,$1); strcat($$,$3); }
+            |   exprconst CONCAT varname {char *tmpstr=ppGetValueAsString($3,&@3);  $$=malloc(strlen($1)+strlen(tmpstr)+1); strcpy($$,$1); strcat($$,tmpstr); }
+            |   STR_CONSTANT    { $$ = $1 ; }
+            ;
+      The correct solution is to have the rule
+         exprconst : varname { $$ = ppGetVauleAsString($1,&@1); }
+      but this gives some obivous conflicts with the expr rule.
+      The complete solution is to carry the result type on the parserstack, and then
+      convert the varname rule accordingly.
+    * Good thing, sort of, it revealed a major design flaw in the current
+      pp loop processing.
+      From ppDoLoop:
+        /* notes
+         * -----
+         *    yy_scan_string, copies the parameter, and do yy_switch_to_buffer() 
+         *    The delete of the buffer returned by yy_scan_string is completely
+         *    handled in the <<EOF>> scanner rule.
+         * 
+         * Problem
+         * -------
+         *    The current logic, creates a number of individual buffers, these
+         *    buffers will be processed _after_ the function returns.
+         *    This has some unfortunate features (errors, flaws etc) like, the 
+         *    buffers are scanned from last to first, in reverse order. Plus
+         *    the loop will only execute once.
+         *    In short it SUCKS!
+         *       
+         * 
+         */
+21-08-2007
+    * In ppVariableStructs.h, added to ppContextAnchor
+       int   dolevel; /* %DO .. %END nesting level */
+    * In ppVariable.c function newContextAnchor, initialize the whole
+      structure, added:
+       temp->ppp=NULL;
+       temp->ppGatherTokens=0;
+       temp->ppScanForLabel=NULL;
+       temp->dolevel = -1; /* %DO .. %END nesting level */
+       temp->loopVarname=NULL;
+       temp->loopStartValue=-1;
+       temp->loopEndValue=-1;
+    * In ppVariable.c, functions ppSetDoStmt and ppSetEndStmt, increase and 
+      decrease the scannercontext->dolevel. 
+      If dolevel is >= 0 then a nesting is active, but this is currently no
+      supported.
+    * In pl1pp-parser.y, remove all donesting. This is now handled in ppVariable.c, 
+      ppSetDoStmt and ppSetEndStmt respectively.
+    * In pl1-scanner.l, add prototype for ppDoLoop
+15-08-2007
+    * Moved freeing and resetting of currentContext back to function
+      evaluatePreprocessor. This matches the rest of the function.
+    * In Make-lang.in, removed -O0 from compilation of lex.yy.c, make rule is now:
+        pl1/lex.yy.o: pl1/lex.yy.c pl1/pl1.tab.h pl1/pl1pp-parser.h $(PL1_DEBUG)
+            $(CC) -c  -Wall $(INCLUDES) -I$(PL1_COMMON_INCLUDE) $< $(OUTPUT_OPTION)
+14-08-2007
+    * Change all uses of freeAnyTokenList to emptyAnyTokenList
+    * Rename constants from
+        LIT_PREPROCESSOR_DO_LOOP_TRUE
+        LIT_PREPROCESSOR_DO_LOOP_FALSE 
+      to
+        LIT_PREPROCESSOR_LOOP_DO
+        LIT_PREPROCESSOR_LOOP_END
+    * In ppVariable.c, simplify ppSetDoStmt and ppSetEndStmt
+      From
+        int ppSetDoStmt(char *loopvarname, int fromexpr, int toexpr, YYLTYPE *llocp)
+        {   int isOK;
+            debugParserpp("$$$ ppSetDoStmt for loop variable %s, from %i, to %i\n",loopvarname,fromexpr,toexpr);
+            isOK=0;
+            memcpy(scannerContext->ppreturn->location,llocp,sizeof(YYLTYPE));
+            scannerContext->ppreturn->type=LIT_PREPROCESSOR_LOOP_DO;
+            if(loopvarname)
+            { /* set loop variable to initial value */
+              isOK=ppSetIntValue(loopvarname,fromexpr,llocp);
+              if(!isOK) 
+              { scannerContext->ppreturn->string=strdup(loopvarname);
+                scannerContext->ppreturn->type=LIT_PREPROCESSOR_ERROR;
+              }
+              else
+              {
+                scannerContext->loopVarname    = loopvarname;
+                scannerContext->loopStartValue = fromexpr;
+                scannerContext->loopEndValue   = toexpr;
+                if(fromexpr<=toexpr)
+                { debugParserpp("$$$ ppSetDoStmt: loop evaluated as TRUE \n");
+                  scannerContext->ppreturn->type=LIT_PREPROCESSOR_LOOP_DO;
+                }
+                else
+                { debugParserpp("$$$ ppSetDoStmt: loop evaluated as FALSE \n");
+                  scannerContext->ppreturn->type=LIT_PREPROCESSOR_LOOP_END;
+                }
+              }
+            }     
+            return isOK;
+        }
+        int ppSetEndStmt(YYLTYPE *llocp)
+        {   debugParserpp("$$$ ppSetEndStmt ");
+            int tempint;
+            int isOK;
+            isOK=0;
+            scannerContext->ppreturn->type=LIT_PREPROCESSOR_LOOP_END;
+            memcpy(scannerContext->ppreturn->location,llocp,sizeof(YYLTYPE));
+            if(scannerContext->loopVarname)
+            {
+                tempint=ppGetIntValue(scannerContext->loopVarname,llocp);
+                tempint++;
+                isOK=ppSetIntValue(scannerContext->loopVarname,tempint,llocp);
+                if(tempint<=scannerContext->loopEndValue)
+                { debugParserpp("$$$ ppSetEndStmt: loop evaluated as TRUE \n");
+                  scannerContext->ppreturn->type=LIT_PREPROCESSOR_LOOP_DO;
+                }
+                else
+                { debugParserpp("$$$ ppSetEndStmt: loop evaluated as FALSE \n");
+                  scannerContext->ppreturn->type=LIT_PREPROCESSOR_LOOP_END;
+                }
+            }
+            return 0;
+        }
+      to
+        int ppSetDoStmt(char *loopvarname, int fromexpr, int toexpr, YYLTYPE *llocp)
+        { int isOK;
+          debugParserpp("$$$ ppSetDoStmt for loop variable %s, from %i, to %i\n",loopvarname,fromexpr,toexpr);
+          scannerContext->ppreturn->type=LIT_PREPROCESSOR_LOOP_DO;
+          memcpy(scannerContext->ppreturn->location,llocp,sizeof(YYLTYPE));
+          isOK=0;
+          if(!loopvarname)
+          {
+            yyerror("ppVariable.c: ppSeDoStmt: Internal error, loopvarname is not allocated");
+            scannerContext->ppreturn->type=LIT_PREPROCESSOR_ERROR;
+            isOK=-1;
+          }
+          else
+          { /* set loop variable to initial value */
+              isOK=ppSetIntValue(loopvarname,fromexpr,llocp);
+              if(!isOK) 
+              { scannerContext->ppreturn->string=strdup(loopvarname);
+                scannerContext->ppreturn->type=LIT_PREPROCESSOR_ERROR;
+              }
+              else
+              {
+                scannerContext->loopVarname    = loopvarname;
+                scannerContext->loopStartValue = fromexpr;
+                scannerContext->loopEndValue   = toexpr;
+              }
+          }
+          return isOK;
+        }        
+        int ppSetEndStmt(YYLTYPE *llocp)
+        {   debugParserpp("$$$ ppSetEndStmt ");
+            scannerContext->ppreturn->type=LIT_PREPROCESSOR_LOOP_END;
+            memcpy(scannerContext->ppreturn->location,llocp,sizeof(YYLTYPE));
+            return 0;
+        }
+    * Moved tokenListAsString from pl1-scanner.l to SavedToken.c
+        char *tokenListAsString(struct anyTokenList *inTokensList );
+    * in pl1-scanner.l, created new function ppDoLoop:
+        int ppDoLoop
+        ( char *ppLoopVarname
+        , int   loopStartValue    
+        , int   loopEndValue
+        , struct anyTokenList *list
+        ,yyscan_t yyscanner
+        )
+        {
+          int i;
+          char *work;
+          work=tokenListAsString(list);
+          debugLexer("ppDoLoop: setup execution of loop. ppVarname %s, start value %i, end value %i, loop text \"%s\"\n"
+              ,ppLoopVarname
+              ,loopStartValue
+              ,loopEndValue
+              ,work
+              );
+          debugLexer("Freeing token lists and cleanup\n");
+          emptyAnyTokenList(list);
+          /* TODO: update pp dcl variables with value, and reevaluate before adding 1 */
+          for(i=loopStartValue;i<=loopEndValue;i++)
+          { debugLexer("ppDoLoop: loop %i \n",i);
+            /* look at ppExpandText */
+            /* ok, we got the value, now return it to the scanner */
+            /* push the new buffer, and simulate each,
+             * macro expansion as an include file.
+             * The buffer will be popped by the <<EOF>> rule.
+             */
+            struct PLIParserIncludeFile *tmpIncludeFile = currentIncludeFile;
+            currentIncludeFile=addIncludeFile(ppCurrentContext->ppp->includefilelist
+                                                 , INCTYPE_PPVAR
+                                                 , work
+                                                 , tmpIncludeFile
+                                                 , yyget_lloc(yyscanner)); /* check location of text variable */
+            stackCurrentBuffer(yyscanner,tmpIncludeFile); 
+            includeCount++;
+            /* notes
+            * -----
+            *    yy_scan_string, copies the parameter, and do yy_switch_to_buffer() 
+            *    The delete of the buffer returned by yy_scan_string is completely
+            *    handled in the <<EOF>> scanner rule.
+            */
+              yy_scan_string (work, yyscanner);
+              
+               /* reevaluate loopvarname */
+              }
+              free(work);
+        return 0;
+        }
+    * In pl1-scanner.l, changed handling of evaluatePreprocessor
+       case 4:
+               emptyAnyTokenList(ppSaveTokensList);
+               resetCurrentContext( ppCurrentContext ) ;
+               ppCurrentContext->ppGatherTokens=0;
+               if(ppDoLoop(ppCurrentContext->loopVarname
+                         , ppCurrentContext->loopStartValue    
+                         , ppCurrentContext->loopEndValue
+                         , ppCollectedTokensList
+                         , yyscanner
+                         )<0)
+                 {
+                   BEGIN _MUST_TERMINATE_ ;
+                   return _SCANNER_ERROR_; 
+                 };
+               break;
+    * Move various notes regarding the %DO .. %END
+    <============vvvvvvvvvvvvv start notes vvvvvvvvvvvvv====================>
+    * %DO, the plan
+      - Extend so pp tokens can be kept on a nested list, if necessary
+      - Consider to use struct also for the lookahead list of tokens
+      - Consider to use struct for the include files
+      - Implement %DO variable = expr TO expr
+      - Build proper interface to structure
+        from ppVariable.c 
+         -  struct ppContextAnchor *newppContextAnchor(void)
+            called from scanner rule '%', only if the structure is not already allocated
+         - create prober interface to
+            extern struct ppContextAnchor *scannerContext;  // set in pl1pp-parser.y, which gets it from pl1-scanner.l   
+    * The LOOK-A-HEAD ...
+      How is the source code scanned and eventually parsed ?
+      There are a number of PL/I language constructs that cannot be parsed 
+      with bisons parsing algorithme. For these few type of PL/I statements,
+      the scanner have to look at the scanned tokens to make the right 
+      decision. 
+      Consolidate the two token lists
+          ppSaveTokensList
+          lahSaveTokensList
+      so there can be a chain of saved tokens list, for example used for nested preprocessor statements.
+      extract from the macro __dupyy
+          if(ppCurrentContext->ppGatherTokens) \
+          { if (!ppSaveTokensList) ppSaveTokensList=newSaveTokenList("pp scanner");\
+            if (!savetoken(ppSaveTokensList,t,yyget_lloc(yyscanner),yyget_lval(yyscanner)->s)) return _SCANNER_ERROR_; \
+          } \
+          else if(lookahead) \
+          { if (!lahSaveTokensList) lahSaveTokensList=newSaveTokenList("lookahead");\
+            if (!savetoken(lahSaveTokensList,t,yyget_lloc(yyscanner),yyget_lval(yyscanner)->s)) return _SCANNER_ERROR_; \
+          } \
+      By using an array of pointers, and have an index counter, eg, use ppGatherTokens as index:
+          if(ppCurrentContext->ppGatherTokens>=0) \
+          { if (!ppSaveTokensList[ppCurrentContext->ppGatherTokens]) ppSaveTokensList[ppCurrentContext->ppGatherTokens]=newSaveTokenList("pp scanner");\
+            if (!savetoken(ppSaveTokensList[ppCurrentContext->ppGatherTokens],t,yyget_lloc(yyscanner),yyget_lval(yyscanner)->s)) return _SCANNER_ERROR_; \
+          } \
+      hmm the stack will not work, because the tokens between the %do and %end has to be reevaluated 
+      for each %loop iteration, and if the lookahead is active, then the tokens must be returned
+      to the lookahead list of tokens.
+    * thinking a bit further, we need the current lookahead still for the 
+      parser, and a different kind of lookahead for the preprocessor.
+      The lookahead for the preprocessor, should in the case of %DO .. %END,
+      'just' keep all tokens between the %DO and the matching %END. This 
+      logic would also work for %IF and %PROCs. Sounds good.
+      So how to do it?
+      The magic takes place in the scanner rule for semicolon ';'
+      There are these states to consider
+      /-------------- Lookahead active
+      !    /--------- Preprocessor active
+      !    !    /---- Preprocessor scanning for label
+      !    !    !
+      LH ! PP ! PL    Action
+     ----!------------------------------------
+       0 ! 0  ! 0     Normal processing RETURN ';' to parser
+       0 ! 0  ! 1     = invalid state =
+       0 ! 1  ! 0     ';' belongs to a preprocessor stmt
+                      Analyze the statement, and 
+                      If first token is not  '%' keep gathering the tokens. 
+                      else pass the preprocessor statement to the pp-parser
+                      and check the result of the parsing.
+                      %GOTO label    ==> set PL active and keep PP active
+                      %GOTO location ==> reset PP and fseek to location
+                      %DO   ==> pass to pp, and setup doexpr (start,max,incr), 
+                                and keep gathering tokens
+                      %END  ==> as long as the loop condition is true, keep 
+                                rescanning the gathered tokens, and reset PP 
+                                when done.
+                      %DCL  ==> pass to pp, and reset PP.
+                      %.. = ... ; ==> pass to pp, and reset PP.
+                      %etc ... ; ==> pass to pp, and reset PP. 
+       0 ! 1  ! 1     If first token is not '%' discarding tokens, until the
+                      sought label is found
+                      If the first token is '%' then analyze the pp statement, and
+                      if the label match, then pass the stmt to the pp parser, else
+                      if the pp stmt have label, then define the label to the pp system. 
+       1 ! 0  ! 0     Switch to scanner start LEXRETURNTOKENS
+       1 ! 0  ! 1     = invalid state =
+       1 ! 1  ! 0     
+       1 ! 1  ! 1     
+    * Analyze if the lookahead and the preprocessor token lists, are
+      enough. Probably have to do a nested, or linked list of token lists.
+      This should also make the nested preprocessor statement possible
+    * Sample program:
+        0
+        1    test : proc ;
+        2    %dcl i fixed ;
+        3    %do i =1 to 9 ;
+        4      put skip list(i);
+        5    %end ;
+        6    end;
+      now when line 3 is done, the following tokens until the matching %end 
+      should be kept on a list,and then if the loop condition still holds,
+      the list of tokens should be sent to the parser. The easiest is to
+      convert the list of tokens into a string, and let the scanner scan , 
+      and let the scanner process this string, in a loop.
+      The list of tokens to save could be stored inside the structure
+        struct ppContextAnchor *ppCurrentContext
+      care must be taken that the ppCurreentContext stays allocated.
+      Better to always allocate a pContextAnchor, this will also remove all the
+      checks to see if it is allocated or not.
+     -This approach would even work with the normal lookahead processing. The
+      rescanned tokens will simply be added to lookahead list when the scanner
+      scans the tokens.
+     -The RESCAN option of a preprocessor symbol can further be checked in
+      ppExpandVariable, by checking the type of the current scanner buffer 
+      that is being scanned.
+    * The location for a procedure name is not the name it self, but the
+      location of the 
+        ": proc;" 
+      part. This has to be fixed for the pl1gcc_editor project.
+    * Add %DO
+      When %DO is met, return status that indicates keep scanning for tokens
+      until the matching %END is met.
+      When the %END is met, evaluate loop conditions, and start returning
+      tokens accordingly, remember to change value of loop variable.
+    * New preprocessor keywords for more comprehensive %DO %END
+        %DO
+        %TO
+        %BY
+        %WHILE
+        %UNTIL
+        %END
+    * use the checkPreprocessorStmt function to determine if evaluation of pp should
+      be postponed, until the %END is met.
+      ------------------
+    * Processing % DO take 2
+      So for the tokens series
+        token[0]=37,   text=%   ppGatherTokens=1
+        token[1]=1593, text=DO
+        token[2]=832,  text=I
+        token[3]=61,   text==
+        token[4]=800,  text=1
+        token[5]=4579, text=to
+        token[6]=800,  text=9
+        token[7]=59,   text=;   Semi colon rule active
+                                keep the gathering active, 
+                                but discard the %DO after 
+                                the preprocessor has been
+                                invoked.
+                                Basically need to store all the subsequent 
+                                tokens away on special list until a %END is
+                                met.
+        token[8]=832,  text=put
+        token[9]=4515, text=skip
+        token[10]=832, text=list
+        token[11]=40,  text=(
+        token[12]=832, text=i
+        token[13]=41,  text=)
+        token[14]=59,  text=;   Semi colon rule active, and ppGatherTokens=1
+                                Since first token of the statement is not % 
+                                just keep scanning and add tokens to the 
+                                ppSaveTokensList.
+                                On the saved list of tokens, keep track of the
+                                previous ';' to find the first token of the 
+                                statement.
+                                Even if another preprocessor statement is
+                                found, just keep it on the list. For now
+                                nested %DO...%END is not allowed.
+        token[15]=37,  text=%
+        token[16]=1612,text=END
+        token[17]=59,  text=;   Semi colon rule active, and ppGatherTokens=1
+                                Note, at this point the list of saved tokens
+                                will also include non preprocessor statements.
+      ------------------
+    * Processing %DO ... an idea...
+      When the %DO is met, then build a special return structure that contains 
+      necessary control information to decide how many times the next statements
+      should be executed. And when the %END is met, then evaluate the loop
+      control block.
+      This have the advantage, that there is no need to store the preprocessor
+      tokens, only the 'real' tokens have to be stored on a separate list, 
+      and further, to handle the nested %DO ... %END, simply have a linked
+      list of loop control blocks. The list of loop control blocks, could in
+      principle be entirely internal for the pl1pp-parser.c module.
+      If the first evaluation of the loop control block is false, then discard
+      all tokens until the matching %END is met. Note during this discard 
+      processing %labels can probably be ignored as well, since it should not
+      be allowed to use %GOTO into the middle of a %DO ... %END block.
+      The start and end of a %DO ... %END sequence is detected with the function
+      ppDetectStmtType.
+      So for the tokens series
+        token[0]=37,   text=%
+        token[1]=1593, text=DO
+        token[2]=832,  text=I
+        token[3]=61,   text==
+        token[4]=800,  text=1
+        token[5]=4579, text=to
+        token[6]=800,  text=9
+        token[7]=59,   text=;
+      ====> the rule for %DO in pl1pp-parser calls ppSetDoStmt in ppVariable.c,
+            here could the loop control block be set
+              { scannerContext->ppreturn->data="";
+                scannerContext->ppreturn->type=LIT_PREPROCESSOR_LOOP_TRUE;
+              }
+      ====>  save the next tokens ...
+            if the loop condition is initially false, then
+              { scannerContext->ppreturn->data="";
+                scannerContext->ppreturn->type=LIT_PREPROCESSOR_LOOP_FALSE;
+              }
+              
+        token[8]=832,  text=put
+        token[9]=4515, text=skip
+        token[10]=832, text=list
+        token[11]=40,  text=(
+        token[12]=832, text=i
+        token[13]=41,  text=)
+        token[14]=59,  text=;
+      ====> this list of tokens should be saved on a list that can be reinvoked 
+            when the %end is met. 
+            Instead of saving a list of tokens, concatenate the tokens to a 
+            string, and when the tokens should be reevaluated, simply switch
+            to a new scanner buffer, containing the concatenated list of 
+            tokens. Find a way to ensure that the string keeps getting 
+            reevaluated as long as the loop condition is true.
+            When concatenating the string, only add an extra space if really
+            necessary.
+        token[15]=37,  text=%
+        token[16]=1612,text=END
+        token[17]=59,  text=;
+      ====> analyse the loop condition, and if true, then invoke the saved 
+            tokens, else free the saved token list, and continue scanning
+            for tokens.
+    - to save the loop condition, it should be done within the 
+        struct ppContextAnchor
+      this would be the correct place.
+      As first cut just have three elements
+        loop varname
+        loop initial start value
+        loop initial end value
+      the current value can be found by getting the intvalue for the 
+      loop varname.
+    * When %DO is parsed, then all the tokens until %END should be kept on a 
+      separate token list. This probably have to be a stack of some sort, 
+      because the lookahead could already be active, and is used in a different
+      context, eg, when %PROCEDUREs are supported:
+         %a: proc(i) returns(char);
+            return( 'A' !! trim(i));
+         %end a;
+         DCL %DO I=1 to 4; a(i) fixed bin(i), %END; b fixed ;
+      should give:
+         DCL a1 fixed bin(1), a2 fixed bin(2), a3 fixed bin(3), a4 fixed bin(4), b fixed;
+      this means that the tokens
+         "a(i) fixed bin(i),"
+      has to be stored away until the matching %END is met.
+      When %END is parsed, then the saved tokens have to be iterated according
+      to the loopspecification, and stored away in either the lookahead or
+      similar.
+    - Can the evaluation and the return of the tokens be controlled with a 
+      special scanner state ? When returning the tokens they are fully 
+      scanned, and as such ready for the scanner/parser.
+      Might be a problem for nested %DOs:
+          %DO a=1 to 3;
+              if ... 
+              %DO b=1 to 8;
+                 ...
+              %END;
+              then call xx;
+          %END
+    - Back to the sample
+         DCL %DO I=1 to 4; a(i) fixed bin(i), %END; b fixed ;
+         --- ------------- ------------------ ----- ------- -
+          !        !               !            !-----------> Evaulate loop condition
+          !        !               !                          and while true, return the tokens
+          !        !               !------------------------> Add tokens to lookhead,
+          !        !                                          and store tokens away     
+          !        !                                          only if the loopcondition is true
+          !        !----------------------------------------> Invoke preprocessor,
+          !                                                   assign start value to loopvariable
+          !-------------------------------------------------> Enable lookahead for DCL statement
+          
+    - If the lookahead is active, then the tokens first get evaluated when
+      the scanner enters the <LEXRETURNTOKENS> state. This means that the
+      original tokens are still intact within the list of saved tokens. 
+      This in turns means that we just need to store a marker for the first
+      token in the lookahead list that will be reiterated when the %END is met.
+    - If lookahead is not active, then the processing is slightly different.
+      When the %DO has been parsed by the preprocessor, then the lookahead must
+      be enabled, so the tokens can be saved for the loop iteration when %END 
+      is met.
+    - What if the loopcondition is initially false ?
+      Now no tokens should be saved, or at least returned to the parser.
+      So this means discard tokens as done with the %goto processing, except
+      that here is there no %Label to look for, only the %END statement.
+      Currently the discard enabling is the controlled within pl1-scanner, 
+      by using  
+        evaluatePreprocessor (called from scanner rule ';', if ppGatherTokens is active)
+        ppAnalyseStmt (really a pre-step before the preprocessor)
+    - Limitations of the first version of %DO - %END
+        No nested %DOs
+        Only one variant of do specifications: 
+            %DO <varname> = <expr> TO <expr>, 
+        both <expr> can be any preprocessor expression including variables
+        Loop variable must be defined          
+    - Another sample
+         DCL a(0:4) fixed init(0 %DO I=1 to 4; ,i %END; ) ;
+    <==========^^^^^^^^^^^^^^^^^ end of comments ^^^^^^^^^^^^^^^^^^============>
+13-08-2007
+    * In SavedToken.c / .h, added new function
+        int emptyAnyTokenList(struct anyTokenList *list)
+      this will be used to prepare "list" for reuse.
+    * In pl1-scanner.l, changed interface for function resetCurrentContext
+      from
+        int resetCurrentContext
+        ( struct ppContextAnchor **ppCurrentContext
+        , struct anyTokenList **ppSaveTokensList
+        );
+      to
+        int resetCurrentContext
+        ( struct ppContextAnchor **ppCurrentContext
+        );     
+09-08-2007
+    * In pl1-scanner.l, function evaluatePreprocessor, if the statement in 
+      ppSavedTokenList is not a preprocessor statement, then return 2, 
+      continue scanning for tokens.
+    * Rename constants from
+        LIT_PREPROCESSOR_LOOP_TRUE
+        LIT_PREPROCESSOR_LOOP_FALSE 
+      to
+        LIT_PREPROCESSOR_DO_LOOP_TRUE
+        LIT_PREPROCESSOR_DO_LOOP_FALSE 
+08-08-2007
+    * In ppVariableStructs.h, to struct ppContextAnchor 
+      moved into structure:
+         ppGatherTokens 
+         ppScanForLabel
+    
+      Structure is now
+        struct ppContextAnchor
+        {   struct ppDCLelement *ppDCLhead, *ppDCLtail;
+            struct ppDCLLabelStack *ppDCLLabelTail;
+            struct ppReturn *ppreturn;
+            struct PLIParserParms *ppp;
+            int ppGatherTokens;
+            char *ppScanForLabel;
+            /* %DO handling */
+            char *loopVarname;
+            int   loopStartValue;
+            int   loopEndValue;
+        };
+06-08-2007
+    * In ppVariable.c, newppContextAnchor, always allocate the ppreturn area:
+        scannerContext->ppreturn=malloc(sizeof(struct ppReturn));
+      In ppVariable.c, ppIncludeFileUtils.c, pl1-scanner.l, remove checks and 
+      explicit allocate of scannerContext->ppreturn variable. 
+      - Remove unnecessary check if structure is allocated
+    * In libpl1/SavedToken.c, .h, added
+      int appendAnyTokenList(struct anyTokenList *target,struct anyTokenList *source);
+31-07-2007
+    * In pl1-scanner.l, fixed misspelling of "Proprocessor"
+    * More analyzing of allocating ppCurrentContext
+    * Allocate the ppCurrentContext within the YY_USER_INIT macro.
+      Changed from
+        ppCurrentContext=NULL; 
+      to
+        ppCurrentContext=newppContextAnchor(); 
+    * Change '%' scanner rule
+      from
+         "%"               {   /* P R E P R O C E S S O R */
+          if(!ppGatherTokens)
+          {  debugLexer("scanner: enabling preprocessor scanning of tokens.\n");
+             ppGatherTokens=1;
+               if(!ppCurrentContext)
+               { /* allocate current context block */
+               debugLexer("scanner: Allocating preprocessor context block.\n");
+               ppCurrentContext=newppContextAnchor();
+               }
+          }
+          __dupyy(*yytext);
+        }
+      to
+         "%"               {   /* P R E P R O C E S S O R */
+          if(!ppGatherTokens)
+          {  debugLexer("scanner: enabling preprocessor scanning of tokens.\n");
+             ppGatherTokens=1;
+          }
+          __dupyy(*yytext);
+        }
+    * Changed check in ppExpandTokenText
+            if(!ppCurrentContext) /* no preprocessor statement has been met */ return 0;
+       to
+            "ppCurrentContext->ppDCLhead", which when allocated means
+            at least one preprocessor variable has been declared. Which is 
+            what ppExpandToken wants to check anyway     
+30-07-2007
+    * Added comments in ppVariable.c
+27-07-2007
+    * Remember to update the link in gcc-src to point to the new work space!
+26-07-2007
+    * Getting back after a break (3 months). 
+      - Thanks God there are still a lot to do ...
+        for a moment I dreamt we had a working compiler:-)
+    * Switched development for the project to Eclipse v3.3
+    * Setup make system so CDT can build the pl1gcc project
+    * Cleanup old and unsupported option, from lang-options.h, remove
+        {"-flisting-xml", N_("produce listing file in xml format")},
+    * In pl11.c, enable preprocessor tracing if parsertracing is active.
+07-05-2007
+	////////// various notes moved from above \\\\\\\\\\\
+	* in pl1-scanner.l, function evaluatePreprocessor, add logic to detect the 
+	  statement boundaries of a %DO - %END block.
+	    else if((*ppCurrentContext)->ppreturn
+	          &&(*ppCurrentContext)->ppreturn->type==LIT_PREPROCESSOR_BLOCK_DO) /* Start of %DO - %END */
+	    { debugLexer( sprintfString(" DO (location %s)\n"
+	                       ,sprintf_yylloc((*ppCurrentContext)->ppreturn->location)
+	                    ));
+		  *ppGatherTokens=1;
+		  goto out_zero;
+	    }
+	    else if((*ppCurrentContext)->ppreturn
+	          &&(*ppCurrentContext)->ppreturn->type==LIT_PREPROCESSOR_BLOCK_END) /* End of %DO - %END */
+	    { debugLexer( sprintfString(" END (location %s)\n"
+	                       ,sprintf_yylloc((*ppCurrentContext)->ppreturn->location)
+	                    ));
+	    }
+	- only problem is that the %do is reevaluated at the time the %end is met,
+	  and all the non-preprocessor statements that are between %do %end are 
+	  also evaluated by the preprocessor.
+		(File,line,column from,to)([0],4,0-1)   offset from-to[42-43[	pp scanner: token[0]=37, text=%
+		(File,line,column from,to)([0],4,1-3)   offset from-to[43-45[	pp scanner: token[1]=1593, text=DO
+		(File,line,column from,to)([0],4,4-5)   offset from-to[46-47[	pp scanner: token[2]=832, text=I
+		(File,line,column from,to)([0],4,6-7)   offset from-to[48-49[	pp scanner: token[3]=61, text==
+		(File,line,column from,to)([0],4,8-9)   offset from-to[50-51[	pp scanner: token[4]=800, text=1
+		(File,line,column from,to)([0],4,10-12) offset from-to[52-54[	pp scanner: token[5]=4579, text=to
+		(File,line,column from,to)([0],4,13-14) offset from-to[55-56[	pp scanner: token[6]=800, text=9
+		(File,line,column from,to)([0],4,14-15) offset from-to[56-57[	pp scanner: token[7]=59, text=;
+		(File,line,column from,to)([0],6,0-3)   offset from-to[59-62[	pp scanner: token[8]=832, text=put
+		(File,line,column from,to)([0],6,4-8)   offset from-to[63-67[	pp scanner: token[9]=4515, text=skip
+		(File,line,column from,to)([0],6,9-13)  offset from-to[68-72[	pp scanner: token[10]=832, text=list
+		(File,line,column from,to)([0],6,13-14) offset from-to[72-73[	pp scanner: token[11]=40, text=(
+		(File,line,column from,to)([0],6,14-15) offset from-to[73-74[	pp scanner: token[12]=832, text=i
+		(File,line,column from,to)([0],6,15-16) offset from-to[74-75[	pp scanner: token[13]=41, text=)
+		(File,line,column from,to)([0],6,16-17) offset from-to[75-76[	pp scanner: token[14]=59, text=;
+		(File,line,column from,to)([0],8,0-1)   offset from-to[78-79[	pp scanner: token[15]=37, text=%
+		(File,line,column from,to)([0],8,1-4)   offset from-to[79-82[	pp scanner: token[16]=1612, text=END
+		(File,line,column from,to)([0],8,4-5)   offset from-to[82-83[	pp scanner: token[17]=59, text=;
+	\\\\\\\\\\ various notes moved from above ///////////
+02-05-2007
+	* In pl1pp-parser.y, added new variable to ensure the nesting level of
+	  %DO .. %END will never be more than one.
+	* In ppVariableStructs.h, added three variables to the 
+		struct ppContextAnchor
+		{	struct ppDCLelement *ppDCLhead, *ppDCLtail;
+			struct ppDCLLabelStack *ppDCLLabelTail;
+			struct ppReturn *ppreturn;
+			struct PLIParserParms *ppp;
+			/* %DO handling */
+			char *loopVarname;
+			int   loopStartValue;
+			int   loopEndValue;
+		};
+	- to support nested %DO..%END, the loop variables should be handled
+	  (of course) as a linked list.
+	* In ppVariable.c, function ppSetDoStmt
+	  detect if initial loop condition is true or false
+	* In ppVariable.c, function ppSetEndStmt
+	  increment the loop variable by one and detect is the loop end 
+	  condition is met.
+13-04-2007
+	* Use the new ppDetectStmtType to detect if preprocessor statement has
+	  a label.
+	  This will also reduce the overloaded function ppAnalyseStmt.
+	  Further during the ppProcessLabelStmt, add the labels to the internal
+	  structure.
+12-04-2007
+	* In pl1-scanner, enhance evaluatePreprocessor function, by using the new
+	  functions
+	  Replace
+		if(ppStmtType>=100 && *ppScanForLabel) /* looking for a preprocessor label name */
+	  	{ debugLexer(" checking if statement is preprocessor label %s\n",*ppScanForLabel );
+	  	  // analyze the gathered tokens
+	  	  struct anyTokenList *outSavedTokensList=newSaveTokenList("pp scanner temp");
+	  	  int checkThePPStmt=ppAnalyseStmt(*ppScanForLabel,*ppSaveTokensList,outSavedTokensList);
+	  	  if(checkThePPStmt==1)
+	  	  { /* found the label
+	  	     * Continue with normal preprocessing
+	  	     */
+	  	     debugLexer(" found GOTO to (forwards) label %s, disabling preprocessor discarding\n",*ppScanForLabel );
+	  	     free(*ppScanForLabel);
+	  	     *ppScanForLabel=NULL;
+	  	     /* set head of list to positon of last % token */
+	  	     *ppSaveTokensList=outSavedTokensList;
+	  	  }
+	  	  else
+	  	  if(checkThePPStmt==2)
+	  	  { /* Found a label, now invoke the preprocessor to add the label to the internal structures */
+	  	     debugLexer(" Adding label during preprocessor discard processing\n");
+	  	     /* set head of list to positon of last % token */
+	  	     *ppSaveTokensList=outSavedTokensList;
+	  	  }
+	  	  else
+	  	  { /* the statement was a preprocessor statement, but
+	  	     * not the one we were looking for, so just free the
+	  	     * saved list of tokens, and keep scanning
+	  	     */
+	  	    freeAnyTokenList(*ppSaveTokensList);
+			resetCurrentContext( ppCurrentContext, ppSaveTokensList) ;
+			goto out_two;
+	  	  }
+	  	}
+	  With
+		if(ppStmtType>=100 && *ppScanForLabel) /* looking for a preprocessor label name */
+	  	{ debugLexer(" checking if statement is preprocessor label %s\n",*ppScanForLabel );
+	  	  // analyze the gathered tokens
+	  	  int checkThePPStmt=ppProcessLabelStmt(*ppScanForLabel,*ppSaveTokensList);
+	  	  if(checkThePPStmt==1)
+	  	  { /* found the label
+	  	     * Continue with normal preprocessing
+	  	     */
+	  	     debugLexer(" found GOTO to (forwards) label %s, disabling preprocessor discarding\n",*ppScanForLabel );
+	  	     free(*ppScanForLabel);
+	  	     *ppScanForLabel=NULL;
+	  	  }
+	  	  else
+	  	  if(checkThePPStmt==2)
+	  	  { /* Found a label, now invoke the preprocessor to add the label to the internal structures */
+	  	     debugLexer(" Adding label during preprocessor discard processing\n");
+	  	  }
+	  	  else
+	  	  { /* the statement was a preprocessor statement, but
+	  	     * not the one we were looking for, so just free the
+	  	     * saved list of tokens, and keep scanning
+	  	     */
+	  	    freeAnyTokenList(*ppSaveTokensList);
+			resetCurrentContext( ppCurrentContext, ppSaveTokensList) ;
+			goto out_two;
+	  	  }
+	  	}
+05-04-2007
+	* Create new function, currently in pl1-scanner.l, to detect what
+	  kind of preprocessor statement has been matched when we are in 
+	  the ';' scanner rule.
+		ppDetectStmtType
+		ppScanTokensForChar
+	-  first cut of implementation:
+		/* 
+		 * Analyse the tokens to detect the preprocessor 
+		 * statement type
+		 * Return
+		 *    -1 : Not a pp statement
+		 *     0 : pp statement
+		 *   100 : % label : pp statement
+		 *     2 : % DO
+		 *   102 : % label : DO
+		 *     3 : % END 
+		 *   103 : % label : END
+		 */ 
+	-	int ppDetectStmtType(struct anyTokenList *ppSaveTokensList)
+		{
+			struct savedtokenlist *workTokens;
+		    int rc;
+			/* this will work as long as ':' only can be used as
+			 * as label indicator
+			 */
+			if(ppSaveTokensList->head->token!='%') { rc= -1; goto out; }
+		    rc=0;
+			workTokens=ppScanTokensForChar(ppSaveTokensList,':');
+			if(workTokens) { rc=100; workTokens=workTokens->next; }
+			else           workTokens=ppSaveTokensList->head->next; /* skip '%' */
+			printf("ppDetechStmtType: token=%i (DO %i) (END %i)\n",workTokens->token,DO,END);
+			if(workTokens->token==DO) rc+=2;
+			else if(workTokens->token==END) rc+=3;
+			out:;
+			return rc;
+		}
+		/* 
+		 * Look at the list of tokens for the start and scan for 
+		 * a token that equals the char
+		 */
+	-	struct savedtokenlist *ppScanTokensForChar(struct anyTokenList *ppSaveTokensList, int find)
+		{	struct savedtokenlist *workTokens;
+			/* look for ch */
+		    for(workTokens=ppSaveTokensList->head
+		  	   ;workTokens
+		  	   ;workTokens=workTokens->next)
+		  	  { 
+		  	  	if(workTokens->token==find) 
+		  	  	  break;
+		  	  }
+			return workTokens;
+		}
+	* Analyzing the processing of %DO ... %END an idea...
+	  When the %DO is met, then build a special return structure that contains 
+	  necessary control information to decide how many times the next statements
+	  should be executed. And when the %END is met, then evaluate the loop
+	  control block.
+	  This have the advantage, that there is no need to store the preprocessor
+	  tokens, only the 'real' tokens have to be stored on a separate list, 
+	  and further, to handle the nested %DO ... %END, simply have a linked
+	  list of loop control blocks. The list of loop control blocks, could in
+	  principle be entirely internal for the pl1pp-parser.c module.
+	  If the first evaluation of the loop control block is false, then discard
+	  all tokens until the matching %END is met. Note during this discard 
+	  processing %labels can probably be ignored as well, since it should not
+	  be allowed to use %GOTO into the middle of a %DO ... %END block.
+	  So for the tokens series
+		token[0]=37,   text=%
+		token[1]=1593, text=DO
+		token[2]=832,  text=I
+		token[3]=61,   text==
+		token[4]=800,  text=1
+		token[5]=4579, text=to
+		token[6]=800,  text=9
+		token[7]=59,   text=;
+	  ====> the rule for %DO in pl1pp-parser calls ppSetDoStmt in ppVariable.c,
+		    here could the loop control block be set
+			  { scannerContext->ppreturn->data="loop control";
+		  	    scannerContext->ppreturn->type=LIT_PREPROCESSOR_LOOP_CONTROL;
+			  }
+		    if the loop condition is initially false, then
+			  { scannerContext->ppreturn->data=" ";
+		  	    scannerContext->ppreturn->type=LIT_PREPROCESSOR_LOOP_FALSE;
+			  }
+		token[8]=832,  text=put
+		token[9]=4515, text=skip
+		token[10]=832, text=list
+		token[11]=40,  text=(
+		token[12]=832, text=i
+		token[13]=41,  text=)
+		token[14]=59,  text=;
+	  ====> this list of tokens should be saved on a list that can be reinvoked 
+	        when the %end is met.
+		token[15]=37,  text=%
+		token[16]=1612,text=END
+		token[17]=59,  text=;
+	  ====> analyse the loop condition, and if true, then invoke the saved 
+	        tokens, else free the saved token list, and continue scanning
+	        for tokens.
+	- looks good !
+03-04-2007
+	* In Make-lang.in, use the PL_LIB variable for pl1gcc specific objects
+	  changed from
+		pl11$(exeext):  @pl1/libpl1 $(PL_LIB_OBJS) \
+		    pl1/pl11.o pl1/pl1tree.o pl1/tree-convert.o \
+			pl1/pl1.tab.o \
+			pl1/lex.yy.o \
+			pl1/pl1pp-parser.o \
+			$(TREE_BE_LIBS) attribs.o \
+			pl1/libpl1/libpl1.a 
+			@echo "Libs $(TREE_BE_LIBS)\n" > t.libs
+			@echo "*** Making PL/I Front End ***"
+			$(CC) $(ALL_CFLAGS) $(LDFLAGS) -o $@ \
+			pl1/pl11.o pl1/pl1tree.o pl1/tree-convert.o \
+			pl1/pl1.tab.o \
+			pl1/lex.yy.o \
+			pl1/pl1pp-parser.o \
+			$(PL_LIB_OBJS) \
+			$(TREE_BE_LIBS) attribs.o -lm 
+	   to
+		pl11$(exeext):  @pl1/libpl1 $(PL_LIB_OBJS) \
+		    pl1/pl11.o pl1/pl1tree.o pl1/tree-convert.o \
+			$(PL_OBJS) \
+			$(TREE_BE_LIBS) attribs.o \
+			pl1/libpl1/libpl1.a 
+			@echo "Libs $(TREE_BE_LIBS)\n" > t.libs
+			@echo "*** Making PL/I Front End ***"
+			$(CC) $(ALL_CFLAGS) $(LDFLAGS) -o $@ \
+			pl1/pl11.o pl1/pl1tree.o pl1/tree-convert.o \
+			$(PL_OBJS) \
+			$(PL_LIB_OBJS) \
+			$(TREE_BE_LIBS) attribs.o -lm 
+	* Move setting of ppGatherTokens from the function evaluatePreprocessor
+	  back to the scanner rule for ';'.
+	  This will also remove a parameter from the overloaded function.
+	- Change interface for evaluatePreprocessor so the setting of the variable
+	  ppGatherTokens is done after the call, and not as part of the function
+	  The result of the function should now be handled as
+	     switch(i)
+	     { 
+	       case 1: BEGIN INITIAL ;
+	               ppGatherTokens=0;
+	               break ;
+	       case 0: ppGatherTokens=0;
+	               break ;
+	       case 2: ppGatherTokens=1;
+	               break;
+	       default: /* error */  
+	               BEGIN _MUST_TERMINATE_ ;
+	               return _SCANNER_ERROR_; 
+	               break; /* keep scanning, keep storing tokens */
+	     }
+02-04-2007
+	* working on reducing the painful eveluatePreprocessor function.
+	- Added helper function
+		/* helper function for evaluatePreprocessor */
+		int resetCurrentContext
+		( struct ppContextAnchor **ppCurrentContext
+		, struct anyTokenList **ppSaveTokensList
+		)
+		{
+		    if((*ppCurrentContext)->ppreturn) (*ppCurrentContext)->ppreturn->type=-1;
+		    //freeAnyTokenList(*ppSaveTokensList);
+		    *ppSaveTokensList=NULL; /* quick and dirty clean */
+		 return 0;	
+		}
+	- this will allow to get rid of all the 
+	    goto donePP
+	  statements.
+	* Second step for evaluatePreprocessor, is to change the label out_two,
+	  into functional description: out_error
+	- Currently errors:
+		open of %include file failed
+		pl1pp_parser returned syntax error
+		%goto a location failed
+	* Change interface, or rather the return values for evaluatePreprocessor 
+	  so it will be easier to extend the supported functionality.
+		 Return
+		  -1: error occured, scanner rule should do BEGIN _MUST_TERMINATE_; return _SCANNER_ERROR_ ;
+		   0: preprocessor ended ok, no action needed
+		   1: scanner rule should do BEGIN INITIAL;
+		   2: preprocessor ended ok, stop scanning for preprocessor tokens
+19-03-2007
+	* Change Make-lang.in, so a library for the pl1gcc objects will built.
+	    pl1/libpl1/libpl1.a  
+	  the following objects are added to the library
+		 pl1/libpl1/PPDebugLog.o 
+         pl1/libpl1/ppIncludeFileUtils.o 
+         pl1/libpl1/PLIMessage.o 
+         pl1/libpl1/PLIParser.o 
+         pl1/libpl1/ScannerUtil.o 
+         pl1/libpl1/SavedToken.o 
+         pl1/libpl1/TokenLocation.o 
+         pl1/libpl1/TokenBasedLookahead.o 
+         pl1/libpl1/ppVariable.o 
+         pl1/libpl1/parseParserStack.o 
+         pl1/libpl1/parseProcGroupList.o 
+         pl1/libpl1/parseScopeNode.o 
+         pl1/libpl1/parseProcOptionList.o 
+         pl1/libpl1/parseDclOptionList.o 
+         pl1/libpl1/parseDclStmt.o 
+         pl1/libpl1/parseMisc.o 
+		 pl1/pl1.tab.o 
+		 pl1/lex.yy.o  
+		 pl1/pl1pp-parser.o 
+13-03-2007
+	* Started PLIEditor java project
+12-03-2007
+	* analysing %DO %END
+07-03-2007
+	* Added END as preprocessor token and statement
+	* Enhance ppReturn for %DO ... %END.	  
+		struct ppReturn
+		{ char * string;
+		  int type;
+		#define LIT_PREPROCESSOR_ERROR 0
+		#define LIT_INCLUDE_FILE_NAME 1
+		#define LIT_PREPROCESSOR_GOTO_LABEL 2
+		#define LIT_PREPROCESSOR_GOTO_LOCATION 3
+		#define LIT_PREPROCESSOR_BLOCK_DO 4
+		#define LIT_PREPROCESSOR_BLOCK_END 5
+		  YYLTYPE *location;
+		};
+	* Analysing the %DO - %END statements
+06-03-2007
+	* Added DO and TO as preprocessor tokens.
+	* In pl1pp-parser.y, add rule for initial parsing of %DO:
+		pl1ppstmt: /* empty */
+		   ...
+			|	DO
+			|	DO dostmt
+			;
+		dostmt:	varname '=' expr TO expr
+			;
+05-03-2007
+	* Fix location information when a merge of dcl attributes fails
+	53	dcl  (
+	54	     dseg$ (0:4095) fixed bin (71),
+	55	     core_map$,
+	56	     emergency_shutdown$,
+		     fault_vector$,
+		     fim$drl_entry,
+		     fim$onc_start_shut_entry,
+		     fim$parity_entry,
+		     fim$signal_entry,
+		     fim$access_violation_entry,
+		     fim$primary_fault_entry,
+		     iom_interrupt$interrupt_entry,
+		     inzr_stk0$,
+		     lot$,
+		     pds$fim_data,
+		     pds$page_fault_data,
+		     pds$signal_data,
+		     prds$fim_data,
+		     prds$fast_connect_code,
+		     prds$ignore_data,
+		     prds$interrupt_data,
+		     prds$sys_trouble_data,
+		     tc_data$,
+		     wired_fim$xec_fault,
+		     wired_fim$unexp_fault,
+		     wired_fim$ignore,
+	79	     page_fault$fault,
+	80	     wired_fim$timer_runout
+	81	     ) fixed bin ext;
+	-		*** errors ***
+			Error at (from line,column)-(to line,column)(80,5)-(81,20) offset[3145-3188[	: 
+			merging declare element
+	  The error message should be closer to 
+	  		"Error at (54,5) setting fixed for variable dseg$"
+	* In parseDclStmt.c / .h, function mergeDeclareElements, 
+	  add extra parameter void* scanner, so the addErrorMsg function can be 
+	  invoked
+	* The error message is now
+			*** errors ***
+			Error at (File,line,column from,to)([0],54,7-12) offset from-to[128-133[	: Setting attribute for dseg$
+			Error at (from file,line,column)-(to file,line,column)([0],80,7)-([0],81,22) offset[810-855[	: merging declare element
+	- Note the location (80,5)-(81,20) is the interval "wired_fim$timer_runout ) fixed bin ext"
+	- from ldd/hardcore/source/initialize_faults.pl1
+	* In pl1-parser.y, function yyerror, remove the extra newlines 
+	  Changed
+	   char *buf=sprintfString("Error at %s: %s\n\n",sprintf_yylloc(locp),msg);
+	  to 
+	   char *buf=sprintfString("Error at %s: %s",sprintf_yylloc(locp),msg);
+	* Analyse %DO.
+02-03-2007
+	* In pl1-scanner.l, move code from scanner rules into own functions
+		<<EOF>> 80 lines
+	- consider to move the code that are not flex dependent into the new
+	  getEOFType function.
+	- or consider to keep the lookahead active until ';', and defer the
+	  handling of lookahead altogether until the ';' is met.
+	- canged scanner rule <<EOF>> from 
+		<<EOF>>			    { debugLexer("<<EOF>> met, include count %i\n",includeCount);
+		  /*
+		   *  The <<EOF>> rule serves several purposes
+		   *  	1: detect EOF during preprocessor scan
+		   *  	2: EOF of an %INCLUDE file
+		   *  	3: EOF while returning saved tokens
+		   *  	4: Really EOF of main file 
+		   */
+			switch(getEOFType(ppGatherTokens,includeCount,lookahead))
+			{ case 1: /* EOF during preprocessor scan */ 
+				if (ppScanForLabel==NULL)
+				{ addErrorMessage((struct PLIParserParms *)yyget_extra(yyscanner),
+			    	  sprintfString("SCANNER: preprocessor EOF met while scanning for ';'" \
+				         " Proprocessor starting at line,col,offset %d,%d,%d \n",
+				         ppSaveTokensList->head->locations->first_line,
+				         ppSaveTokensList->head->locations->first_column,
+				         ppSaveTokensList->head->locations->first_offset));
+				}
+				else
+				{
+			  	  addErrorMessage((struct PLIParserParms *)yyget_extra(yyscanner),
+			    	  sprintfString("SCANNER: preprocessor EOF met while scanning for preprocessor label %s \n",
+			             ppScanForLabel));
+				}
+				/* if the parser request another token, ensure that we are in a error state */
+				BEGIN _MUST_TERMINATE_ ;	
+				/* Let the parser deal with the error */
+				return _SCANNER_ERROR_ ;
+			  break;
+			  case 2: /* EOF detected included file or buffer */	
+		      	debugLexer("<<EOF>> popping buffer\n",includeCount);
+		      	/* remove all the defined labels */
+		      	if(currentIncludeFile->type==INCTYPE_FILE)
+		         ppCurrentContext->ppDCLLabelTail=ppPopDCLLabelStack(ppCurrentContext->ppDCLLabelTail);
+		      	includeCount--;
+		      	switchToPreviousBuffer(yyscanner);
+		        if ( !YY_CURRENT_BUFFER )
+		        { debugLexer("ok really end of file ");
+		          yyterminate();
+		        }
+			  break;
+			  case 3: /* EOF while returning saved tokens */
+		        /* unput a pseudo ' ', to ensure scanner
+		         * continues to return the saved tokens.
+		         * Note the ' '  will just get eaten by
+		         * the scanner.
+		         */
+		        unput(' ');
+		        BEGIN LEXRETURNSAVEDTOKENS;
+			  break;
+			  case 4: /* Really EOF of main file */
+		        yyterminate();
+			  break;
+			} 
+		  /* if we make it through to here, then it means
+		   * the scanner is ready to continue scanning from
+		   * a stacked input file 
+		   */
+		}
+	  to
+		<<EOF>> { debugLexer("<<EOF>> met, include count %i\n",includeCount);
+		switch(getEOFType(ppGatherTokens,includeCount,lookahead))
+		{ case 1: /* EOF during preprocessor scan */ 
+			BEGIN _MUST_TERMINATE_ ;	
+			return _SCANNER_ERROR_ ;
+		  break;
+		  case 2: /* EOF detected included file or buffer */	
+	      	debugLexer("<<EOF>> popping buffer\n",includeCount);
+	        if ( !YY_CURRENT_BUFFER )
+	        { debugLexer("ok really end of file ");
+	          yyterminate();
+	        }
+		  break;
+		  case 3: /* EOF while returning saved tokens */
+	        /* unput a pseudo ' ', to ensure scanner
+	         * continues to return the saved tokens.
+	         * Note the ' '  will just get eaten by
+	         * the scanner.
+	         */
+	        unput(' ');
+	        BEGIN LEXRETURNSAVEDTOKENS;
+		  break;
+		  case 4: /* Really EOF of main file */
+	        yyterminate();
+		  break;
+		}
+		}
+	* In pl1-scanner.l, rename getEOFType to evaluateEOFType
+	* First cut of evaluateEOFType
+01-03-2007
+	* In pl1-scanner.l, move code from scanner rules into own functions
+		";" 200 lines
+	- The semicolon rule, is one of the main processing rules. There are
+	  a number of special cases to solve. Actually the ';' can mean either
+	  end of preprocessor statement, or end of normal statement. If end of
+	  normal statement, then check if lookahead is active, and return the 
+	  saved tokens, before returning the ';'.
+	  -  Preprocessor statements has to be analysed and processed. These are
+	     normally not returned to the scanner.
+	     1) %INCLUDE filename
+	     2) %GOTO label location
+	     3) %GOTO label name
+	     4) Preprocessor error
+	  -  If lookahead is active, then the scanner is at the end of statement, 
+	     and the saved tokens has to be returned to the scanner
+	  -  If neither preprocessor nor lookahead is active, then the ';' token 
+	     is already returned via the __dupyy() macro.
+	  - It seems the whole logic handling the proprecessor can be done via a 
+	    separeate function.
+			if(ppGatherTokens) 
+			{  i=evaluatePreprocessor( ... );
+			   switch(i)
+			   { case 0: BEGIN INITIAL ; break ;
+			     case 1: BEGIN _MUST_TERMINATE_ ; return _SCANNER_ERROR_; break ;
+			     default: break; /* keep scanning */
+			   }
+			}
+			else	    
+			if (lookahead) 
+			{ ...
+			} 
+	- using variables
+		ppGatherTokens
+		ppScanForLabel
+		ppSaveTokensList
+		ppCurrentContext
+		outSavedTokensList (struct anyTokenList local to the rule)
+		checkThePPStmt (int local to the rule)
+		yyextra
+		currentIncludeFile
+		tmpIncludeFile (struct PLIParserIncludeFile local to the rule)
+		yyin
+		includeCount
+		l$ c$ o$ sl$ sc$ so$
+	- using constants
+		DL_LEXEL
+		LIT_INCLUDE_FILE_NAME
+		INCTYPE_FILE
+		LIT_PREPREOCESSOR_ERROR
+		LIT_PREPROCESSOR_GOTO_LOCATION
+	- using functions
+		newSaveTokenList
+		ppAnalyseStmt
+		freeAnyTokenList
+		showTokenList
+		pl1pp_parser
+		addIncludeFile
+		fopen
+		stackCurrentBuffer
+		yy_switch_to_buffer
+		yy_create_buffer
+		ppPushDCLLabelStack
+		yy_flush_buffer
+		fseek
+		fixKeywordTokens
+	- using scanner states
+		_MUST_TERMINATE
+		INITIAL
+		LEXRETURNSAVEDTOKENS
+	- using tokens
+		_SCANNER_ERROR_
+	* Scanner rule before change
+		";"			{  /* S E M I   C O L O N  */
+		  __dupyy(*yytext); 
+		  /* 
+		     NOTE: lookahead is not allowed to see preprocessor
+		     directive tokens, only the tokens that _result_
+		     from a preprocessor directive.  
+		  */
+		  if(ppGatherTokens) 
+		  {
+		  	if(ppScanForLabel) /* looking for a preprocessor label name */
+		  	{ debugLexer(" checking if statement is preprocessor label %s\n",ppScanForLabel );
+		  	  // analyze the gathered tokens
+		  	  struct anyTokenList *outSavedTokensList=newSaveTokenList("pp scanner temp");
+		  	  int checkThePPStmt=ppAnalyseStmt(ppScanForLabel,ppSaveTokensList,outSavedTokensList);
+		  	  if(checkThePPStmt==1)
+		  	  { /* found the label
+		  	     * Continue with normal preprocessing
+		  	     */
+		  	     debugLexer(" found GOTO to (forwards) label %s, disabling preprocessor discarding\n",ppScanForLabel );
+		  	     free(ppScanForLabel);
+		  	     ppScanForLabel=NULL;
+		  	     /* set head of list to positon of last % token */
+		  	     ppSaveTokensList=outSavedTokensList;
+		  	  }
+		  	  else
+		  	  if(checkThePPStmt==2)
+		  	  { /* Found a label, now invoke the preprocessor to add the label to the internal structures */
+		  	     debugLexer(" Adding label during preprocessor discard processing\n");
+		  	     /* set head of list to positon of last % token */
+		  	     ppSaveTokensList=outSavedTokensList;
+		  	  }
+		  	  else
+		  	  { /* the statement was a preprocessor statement, but
+		  	     * not the one we were looking for, so just free the
+		  	     * saved list of tokens, and keep scanning
+		  	     */ 	
+		  	    freeAnyTokenList(ppSaveTokensList);
+		  	    goto donePP;
+		  	   }
+		  	}
+		    if(isDebugLevel(DL_LEXER))
+		    	showTokenList(ppSaveTokensList);
+		  /* TODO: put processing of preprocessor result in separate function */
+		    ppCurrentContext->ppp=(struct PLIParserParms *)yyextra;
+		    /* Call the PLI preprocessor, with the list of saved tokens */
+		    debugVerbose("invoking preprocessor via pl1pp_parser\n");
+		    pl1pp_parser(ppSaveTokensList,ppCurrentContext);
+		    if(ppCurrentContext->ppreturn&&ppCurrentContext->ppreturn->type==LIT_INCLUDE_FILE_NAME)
+		    {
+		    	debugLexer("preprocessor parser returned filename to include %s\n",ppCurrentContext->ppreturn->string);
+		    	struct PLIParserIncludeFile *tmpIncludeFile = currentIncludeFile;
+		    	currentIncludeFile=addIncludeFile(ppCurrentContext->ppp->includefilelist
+		    	yyin = fopen( ppCurrentContext->ppreturn->string, "r" );
+		        if ( ! yyin )
+		        { yyerror(ppCurrentContext->ppreturn->location
+		        	     ,yyscanner
+		        	     ,sprintfString("%s could not open %include file %s\n",strerror(errno),ppCurrentContext->ppreturn->string));
+			      BEGIN _MUST_TERMINATE_ ; /* ensure scanner stops if parser request another token */
+			      return _SCANNER_ERROR_ ;
+		        }
+		        else
+		        { 
+		  		  stackCurrentBuffer(yyscanner,tmpIncludeFile); 
+		          yy_switch_to_buffer(yy_create_buffer( yyin, YY_BUF_SIZE, yyscanner ), yyscanner);
+				  /* add a new stack element for the %LABELs */
+			      ppCurrentContext->ppDCLLabelTail=ppPushDCLLabelStack(ppCurrentContext->ppDCLLabelTail);
+		          BEGIN INITIAL;
+		          includeCount++;
+		        }
+		    }
+		    else if(ppCurrentContext->ppreturn&&ppCurrentContext->ppreturn->type==LIT_PREPROCESSOR_ERROR)
+		    { yyerror(ppCurrentContext->ppreturn->location,yyscanner
+		        	     ,sprintfString("pl1 preprocessor returned error%s\n",ppCurrentContext->ppreturn->string ));
+		      BEGIN _MUST_TERMINATE_ ; /* ensure scanner stops if parser request another token */
+		      ppGatherTokens=0;
+		      return _SCANNER_ERROR_ ;
+		    }
+		    else if(ppCurrentContext->ppreturn&&ppCurrentContext->ppreturn->type==LIT_PREPROCESSOR_GOTO_LABEL) /* skip until label is met ... */
+		    { debugLexer(" GOTO (forwards) label %s, enabling preprocessor discarding\n",ppCurrentContext->ppreturn->string );
+		      ppScanForLabel=strdup(ppCurrentContext->ppreturn->string);
+		      /* keep ppGatherToken active, so use the goto donePP */
+		      goto donePP;
+		    }
+		    else if(ppCurrentContext->ppreturn&&ppCurrentContext->ppreturn->type==LIT_PREPROCESSOR_GOTO_LOCATION) /* reposition scanner to a previous pos. */
+		    { debugLexer( sprintfString(" GOTO (backwards) label %s (location %s)\n"
+		                       ,ppCurrentContext->ppreturn->string
+		                       ,sprintf_yylloc(ppCurrentContext->ppreturn->location)
+		                    ));                  
+		       yy_flush_buffer((YY_CURRENT_BUFFER),yyscanner);
+		       if(fseek(yyin, ppCurrentContext->ppreturn->location->first_offset  ,SEEK_SET))
+		       {  yyerror(NULL,yyscanner
+		          ,sprintfString("%s, could not do fseek to location %i\n",strerror(errno),ppCurrentContext->ppreturn->location->first_offset ));
+			      BEGIN _MUST_TERMINATE_ ; /* ensure scanner stops if parser request another token */
+			      ppGatherTokens=0;
+			      return _SCANNER_ERROR_ ;
+		       }
+		       else
+		       { /* set current location to match location of label */
+		       	l$=ppCurrentContext->ppreturn->location->first_line;
+		       	c$=ppCurrentContext->ppreturn->location->first_column;
+		       	o$=ppCurrentContext->ppreturn->location->first_offset; 
+		       	sl$=-1;
+		       	sc$=-1;
+		       	so$=-1;
+		       }  
+		    }
+		    else
+		    { debugLexer("pl1 preprocessor returned unhandled information. Scanning continues.\n");
+		    }
+		    ppGatherTokens=0;
+		    /* the preprocessing handling is done, now free the 
+		     * saved tokenlist, and initialize the return variable
+		     * Note this label is used when scanning for specific
+		     * preprocessor tokens and when the ppGatherTokens flag
+		     * should be kept active.
+		     */
+		    donePP:;
+		    if(ppCurrentContext->ppreturn) ppCurrentContext->ppreturn->type=-1;
+		    //freeAnyTokenList(ppSaveTokensList);
+		    ppSaveTokensList=NULL; /* quick and dirty clean */ 
+		  } 
+		  else 
+		  {
+		    if (lookahead) 
+		    { 
+		      if(isDebugLevel(DL_LEXER))
+		    	showTokenList(lahSaveTokensList);
+		      /* 
+		       *  check if the first token is kw or identifier
+		       *  and set the token accordingly.
+		       */
+		      fixKeywordTokens(lahSaveTokensList->head,prev_token);
+		      BEGIN LEXRETURNSAVEDTOKENS;
+		      debugLexer("Scanner returning saved tokens");
+		    }
+		  } 
+		}
+	* In pl1-scanner.l, add new function to handle the preprocessor in
+	  the semicolon rule:
+		/*---------------------------
+		 * evaluatePreprocessor is called from a scanner rule.
+		 * Return
+		 *  0: scanner rule should do BEGIN INITIAL;
+		 *  1: scanner rule should do BEGIN _MUST_TERMINATE_; return _SCANNER_ERROR_ ;
+		 *  2: scanner should just continue
+		 * --------------------------
+		 */
+		int evaluatePreprocessor(yyscan_t yyscanner
+		, char **ppScanForLabel  
+		, struct anyTokenList **ppSaveTokensList 
+		, struct ppContextAnchor **ppCurrentContext
+		, int *ppGatherTokens 
+		, struct PLIParserIncludeFile **currentIncludeFile
+		, int *includeCount 
+		, int *l$
+		, int *c$
+		, int *o$
+		, int *sl$
+		, int *sc$
+		, int *so$ 
+		)
+		{
+		    struct yyguts_t * yyg = (struct yyguts_t*)yyscanner; /* TODO: only until YY_CURRENT_BUFFER is prober externalised */
+		    /* in principle the preprocessor scan is complete */
+		    *ppGatherTokens=0;
+		  	if(*ppScanForLabel) /* looking for a preprocessor label name */
+		  	{ debugLexer(" checking if statement is preprocessor label %s\n",*ppScanForLabel );
+		  	  // analyze the gathered tokens
+		  	  struct anyTokenList *outSavedTokensList=newSaveTokenList("pp scanner temp");
+		  	  int checkThePPStmt=ppAnalyseStmt(*ppScanForLabel,*ppSaveTokensList,outSavedTokensList);
+		  	  if(checkThePPStmt==1)
+		  	  { /* found the label
+		  	     * Continue with normal preprocessing
+		  	     */
+		  	     debugLexer(" found GOTO to (forwards) label %s, disabling preprocessor discarding\n",*ppScanForLabel );
+		  	     free(*ppScanForLabel);
+		  	     *ppScanForLabel=NULL;
+		  	     /* set head of list to positon of last % token */
+		  	     *ppSaveTokensList=outSavedTokensList;
+		  	  }
+		  	  else
+		  	  if(checkThePPStmt==2)
+		  	  { /* Found a label, now invoke the preprocessor to add the label to the internal structures */
+		  	     debugLexer(" Adding label during preprocessor discard processing\n");
+		  	     /* set head of list to positon of last % token */
+		  	     *ppSaveTokensList=outSavedTokensList;
+		  	  }
+		  	  else
+		  	  { /* the statement was a preprocessor statement, but
+		  	     * not the one we were looking for, so just free the
+		  	     * saved list of tokens, and keep scanning
+		  	     */ 	
+		  	    freeAnyTokenList(*ppSaveTokensList);
+		  	    *ppGatherTokens=1; /* keep scanning */
+		  	    goto donePP;
+		  	   }
+		  	}
+		    if(isDebugLevel(DL_LEXER))
+		    	showTokenList(*ppSaveTokensList);
+		  /* TODO: put processing of preprocessor result in separate function */
+		    (*ppCurrentContext)->ppp=(struct PLIParserParms *)yyget_extra(yyscanner);
+		    /* Call the PLI preprocessor, with the list of saved tokens */
+		    debugVerbose("invoking preprocessor via pl1pp_parser\n");
+		    pl1pp_parser(*ppSaveTokensList,*ppCurrentContext);
+		    if((*ppCurrentContext)->ppreturn
+		     &&(*ppCurrentContext)->ppreturn->type==LIT_INCLUDE_FILE_NAME)
+		    {
+		    	debugLexer("preprocessor parser returned filename to include %s\n",(*ppCurrentContext)->ppreturn->string);
+		    	struct PLIParserIncludeFile *tmpIncludeFile = *currentIncludeFile;
+		    	*currentIncludeFile=addIncludeFile((*ppCurrentContext)->ppp->includefilelist
+		    	                                   ,INCTYPE_FILE
+		    	                                   ,(*ppCurrentContext)->ppreturn->string
+		    	                                   ,tmpIncludeFile
+		    	                                   ,(*ppCurrentContext)->ppreturn->location);
+		    	yyset_in( fopen( (*ppCurrentContext)->ppreturn->string, "r" ), yyscanner);
+		        if ( ! yyget_in(yyscanner) )
+		        { yyerror((*ppCurrentContext)->ppreturn->location
+		        	     ,yyscanner
+		        	     ,sprintfString("%s could not open %include file %s\n",strerror(errno),(*ppCurrentContext)->ppreturn->string));
+		          goto out_two; /* ensure scanner stops if parser request another token */
+		        }
+		        else
+		        { 
+		  		  stackCurrentBuffer(yyscanner,tmpIncludeFile); 
+		          yy_switch_to_buffer(yy_create_buffer( yyget_in(yyscanner), YY_BUF_SIZE, yyscanner ), yyscanner);
+				  /* add a new stack element for the %LABELs */
+			      (*ppCurrentContext)->ppDCLLabelTail=ppPushDCLLabelStack((*ppCurrentContext)->ppDCLLabelTail);
+		          (*includeCount)++;
+		          goto out_one; /* ensure scanner continues with state INITIAL */
+		        }
+		    }
+		    else if((*ppCurrentContext)->ppreturn
+		          &&(*ppCurrentContext)->ppreturn->type==LIT_PREPROCESSOR_ERROR)
+		    { yyerror((*ppCurrentContext)->ppreturn->location,yyscanner
+		        	     ,sprintfString("pl1 preprocessor returned error%s\n",(*ppCurrentContext)->ppreturn->string ));
+		      goto out_two; /* ensure scanner stops if parser request another token */
+		    }
+		    else if((*ppCurrentContext)->ppreturn
+		          &&(*ppCurrentContext)->ppreturn->type==LIT_PREPROCESSOR_GOTO_LABEL) /* skip until label is met ... */
+		    { debugLexer(" GOTO (forwards) label %s, enabling preprocessor discarding\n",(*ppCurrentContext)->ppreturn->string );
+		      *ppScanForLabel=strdup((*ppCurrentContext)->ppreturn->string);
+		      /* keep ppGatherToken active, so use the goto donePP */
+			  *ppGatherTokens=1;
+		      goto donePP;
+		    }
+		    else if((*ppCurrentContext)->ppreturn
+		          &&(*ppCurrentContext)->ppreturn->type==LIT_PREPROCESSOR_GOTO_LOCATION) /* reposition scanner to a previous pos. */
+		    { debugLexer( sprintfString(" GOTO (backwards) label %s (location %s)\n"
+		                       ,(*ppCurrentContext)->ppreturn->string
+		                       ,sprintf_yylloc((*ppCurrentContext)->ppreturn->location)
+		                    ));            
+		       yy_flush_buffer((YY_CURRENT_BUFFER),yyscanner);
+		       if(fseek(yyget_in(yyscanner), (*ppCurrentContext)->ppreturn->location->first_offset  ,SEEK_SET))
+		       {  yyerror(NULL,yyscanner
+		          ,sprintfString("%s, could not do fseek to location %i\n",strerror(errno),(*ppCurrentContext)->ppreturn->location->first_offset ));
+			      goto out_two; /* ensure scanner stops if parser request another token */
+		       }
+		       else
+		       { /* set current location to match location of label */
+		       	*l$=(*ppCurrentContext)->ppreturn->location->first_line;
+		       	*c$=(*ppCurrentContext)->ppreturn->location->first_column;
+		       	*o$=(*ppCurrentContext)->ppreturn->location->first_offset; 
+		       	*sl$=-1;
+		       	*sc$=-1;
+		       	*so$=-1;
+		       }  
+		    }
+		    else
+		    { debugLexer("pl1 preprocessor returned unhandled information. Scanning continues.\n");
+		    }
+		    /* the preprocessing handling is done, now free the 
+		     * saved tokenlist, and initialize the return variable
+		     * Note this label is used when scanning for specific
+		     * preprocessor tokens and when the ppGatherTokens flag
+		     * should be kept active.
+		     */
+		    donePP:;
+		    if((*ppCurrentContext)->ppreturn) (*ppCurrentContext)->ppreturn->type=-1;
+		    //freeAnyTokenList(ppSaveTokensList);
+		    *ppSaveTokensList=NULL; /* quick and dirty clean */
+		    goto out_zero;
+		  out_zero: return 0; /* preprocessor ended ok, and no action is needed */
+		  out_one: return 1; /* scanner should continue with INITIAL */
+		  out_two: return 2; /* ensure scanner stops if parser request another token */	
+		}
+28-02-2007
+	* Analysing semicolon rule.
+27-02-2007
+	* In pl1-scanner.l, move code from scanner rules into own functions
+		":" 50 lines (40 lines of comments)
+	  Just leave this one alone.
+	- using variables
+		ppGatherTokens
+		lookahead
+		lahSaveTokensList
+	- using constants
+	- using functions
+	- using scanner states
+		LEXRETURNSAVEDTOKENS
+	- using tokens
+		VARNAME
+	* In pl1-scanner.l, remove unused variable
+		struct savedtokenlist *savedtemp;
+26-02-2007
+	* In pl1-scanner.l, move code from scanner rules into own functions
+		<<EOF>> 80 lines
+	- using variables
+		includeCount
+		ppGatherTokens
+		ppScanForLabel
+		ppSaveTokensList
+		currentIncludeFile
+		ppCurrentContext
+		lookahead
+	- using constants
+		INCTYPE_FILE
+	- using functions
+		yyterminate
+		switchToPreviousBuffer
+		ppPopDCLLabelStack
+		YY_CURRENT_BUFFER
+		unput
+	- using scanner states
+		_MUST_TERMINATE
+		LEXRETURNSAVEDTOKENS
+	- using tokens
+		_SCANNER_ERROR_
+	- observations
+	  The <<EOF>> rule serves several purposes
+	  	1: detect EOF during preprocessor scan
+	  	2: EOF of an %INCLUDE file
+	  	3: If saved tokens are being returned
+	  	4: Really EOF of main file
+	- Suggestion
+		create a function to detect the type of EOF that is in place, and
+		create a function for each case.
+		int getEOFType(int ppGatherTokens, int includeCount, int lookahead);
+	  and in the EOF rule
+		switch(getEOFType(ppGatherTokens,includeCount,lookahead)
+		{ case 1: ... break;
+		  case 2: ... break;
+		  case 3: ... break;
+		  case 4: ... break;
+		  default: ;
+		}
+	* Current scanner rule
+		<<EOF>>			    { debugLexer("<<EOF>> met, include count %i\n",includeCount);
+		  /*
+		   *  The <<EOF>> rule serves several purposes
+			  	1: detect EOF during preprocessor scan
+			  	2: EOF of an %INCLUDE file
+			  	3: EOF while returning saved tokens
+			  	4: Really EOF of main file
+		   * 
+		     The end of the current input frame has been reached.
+		     This might be the actual end, or it might just be time
+		     to continue with the previous input frame.  In the later
+		     case we have to make sure the scanner updates any of its
+		     global variables. (i.e. the ones used for yylloc, l$, c$ 
+		     and o$.
+		  */
+		    if (ppGatherTokens) 
+		    { 
+		      /* eof while scanning for end of preprocessor stmt
+		       * or eof while scanning for %LABEL : 
+		       */
+			  if (ppScanForLabel==NULL)
+			  { addErrorMessage((struct PLIParserParms *)yyget_extra(yyscanner),
+		      	  sprintfString("SCANNER: preprocessor EOF met while scanning for ';'" \
+			           " Proprocessor starting at line,col,offset %d,%d,%d \n",
+			           ppSaveTokensList->head->locations->first_line,
+			           ppSaveTokensList->head->locations->first_column,
+			           ppSaveTokensList->head->locations->first_offset));
+			  }
+			  else
+			  {
+		  	    addErrorMessage((struct PLIParserParms *)yyget_extra(yyscanner),
+		      	  sprintfString("SCANNER: preprocessor EOF met while scanning for preprocessor label %s \n",
+		               ppScanForLabel));
+			  }
+			  /* if the parser request another token, ensure that we are in a error state */
+			  BEGIN _MUST_TERMINATE_ ;	
+			  /* Let the parser deal with the error */
+			  return _SCANNER_ERROR_ ;
+		    } 
+		    else 
+		    { if(includeCount>0)
+		      { /* end of include file or buffer */
+		      	debugLexer("<<EOF>> popping buffer\n",includeCount);
+		      	/* remove all the defined labels */
+		      	if(currentIncludeFile->type==INCTYPE_FILE)
+		      	  ppCurrentContext->ppDCLLabelTail=ppPopDCLLabelStack(ppCurrentContext->ppDCLLabelTail);
+		      	includeCount--;
+		      	switchToPreviousBuffer(yyscanner);
+		        if ( !YY_CURRENT_BUFFER )
+		        { debugLexer("ok really end of file ");
+		          yyterminate();
+		        }
+		      }
+		    else
+		    { if (lookahead) 
+		      { 
+		        /* unput a pseudo ' ', to ensure scanner
+		         * continues to return the saved tokens.
+		         * Note the ' '  will just get eaten by
+		         * the scanner.
+		         */
+		        unput(' ');
+		        BEGIN LEXRETURNSAVEDTOKENS;
+		      }
+		      else 
+		      { /* indicate to the parser, that end of file  has been met */
+		        yyterminate();
+		      }
+		    }
+		  }
+		  /* if we make it through to here, then it means
+		   * the scanner is ready to continue scanning from
+		   * a stacked inout file 
+		   */
+		}
+	* In pl1-scanner.l, add function getEOFType
+		/* detect which kind of <<EOF>> that is actually active.
+		 *  The <<EOF>> rule serves several purposes
+		 *	  	1: detect EOF during preprocessor scan
+		 *	  	2: EOF of an %INCLUDE file
+		 *	  	3: EOF while returning saved tokens
+		 *	  	4: Really EOF of main file
+		 */
+		int getEOFType(int ppGatherTokens, int includeCount, int lookahead)
+		{   int rc;
+			if(ppGatherTokens) {rc=1; goto out_rc;}
+			if(includeCount>0) {rc=2; goto out_rc;}
+			if (lookahead)     {rc=3; goto out_rc;}
+			rc=4;
+			out_rc: return rc;	
+		}
+	* In pl1-scanner.l, changed <<EOF>> rule:
+		<<EOF>>			    { debugLexer("<<EOF>> met, include count %i\n",includeCount);
+		  /*
+		   *  The <<EOF>> rule serves several purposes
+			  	1: detect EOF during preprocessor scan
+			  	2: EOF of an %INCLUDE file
+			  	3: EOF while returning saved tokens
+			  	4: Really EOF of main file
+		   * 
+		     The end of the current input frame has been reached.
+		     This might be the actual end, or it might just be time
+		     to continue with the previous input frame.  In the later
+		     case we have to make sure the scanner updates any of its
+		     global variables. (i.e. the ones used for yylloc, l$, c$ 
+		     and o$.
+		  */
+			switch(getEOFType(ppGatherTokens,includeCount,lookahead))
+			{ case 1: 
+				if (ppScanForLabel==NULL)
+				{ addErrorMessage((struct PLIParserParms *)yyget_extra(yyscanner),
+			    	  sprintfString("SCANNER: preprocessor EOF met while scanning for ';'" \
+				         " Proprocessor starting at line,col,offset %d,%d,%d \n",
+				         ppSaveTokensList->head->locations->first_line,
+				         ppSaveTokensList->head->locations->first_column,
+				         ppSaveTokensList->head->locations->first_offset));
+				}
+				else
+				{
+			  	  addErrorMessage((struct PLIParserParms *)yyget_extra(yyscanner),
+			    	  sprintfString("SCANNER: preprocessor EOF met while scanning for preprocessor label %s \n",
+			             ppScanForLabel));
+				}
+				/* if the parser request another token, ensure that we are in a error state */
+				BEGIN _MUST_TERMINATE_ ;	
+				/* Let the parser deal with the error */
+				return _SCANNER_ERROR_ ;
+			  break;
+			  case 2:
+				/* end of include file or buffer */
+		      	debugLexer("<<EOF>> popping buffer\n",includeCount);
+		      	/* remove all the defined labels */
+		      	if(currentIncludeFile->type==INCTYPE_FILE)
+		         ppCurrentContext->ppDCLLabelTail=ppPopDCLLabelStack(ppCurrentContext->ppDCLLabelTail);
+		      	includeCount--;
+		      	switchToPreviousBuffer(yyscanner);
+		        if ( !YY_CURRENT_BUFFER )
+		        { debugLexer("ok really end of file ");
+		          yyterminate();
+		        }
+			  break;
+			  case 3: 
+		        /* unput a pseudo ' ', to ensure scanner
+		         * continues to return the saved tokens.
+		         * Note the ' '  will just get eaten by
+		         * the scanner.
+		         */
+		        unput(' ');
+		        BEGIN LEXRETURNSAVEDTOKENS;
+			  break;
+			  case 4: 
+		        yyterminate();
+			  break;
+			}
+		  /* if we make it through to here, then it means
+		   * the scanner is ready to continue scanning from
+		   * a stacked input file 
+		   */
+		}
+16-02-2007
+	* Add refno to %INCLUDE in TokenLocation.c function sprintf_yylloc:
+		/** returns the location formatted in string */
+		char * sprintf_yylloc(YYLTYPE *y) {
+		  char *buffer=malloc(512);
+		  int f1,f2;
+		  if (y->first_file) f1=y->first_file->refno; else f1=0;
+		  if (y->last_file)  f2=y->last_file->refno ; else f2=0;
+		  if (y==NULL) return NULL;
+		  /* TODO: add filename to output */
+		  if (y->first_line<y->last_line) {
+		    snprintf(buffer,512,"(from file,line,column)-(to file,line,column)([%i],%i,%i)-([%i],%i,%i) offset[%i-%i[\t",
+		       f1,
+			   y->first_line,
+			   y->first_column,
+			   f2,
+			   y->last_line,
+			   y->last_column,
+			   y->first_offset,
+			   y->last_offset);
+		  } else {
+		    /* start and end location is on same line */
+		    snprintf(buffer,512,"(File,line,column from,to)([%i],%i,%i-%i) offset from-to[%i-%i[\t",
+		       f1,
+			   y->first_line,
+			   y->first_column,
+			   y->last_column,
+			   y->first_offset,
+			   y->last_offset);
+		  }
+		  return buffer;
+		}
+15-02-2007
+	* analysing scanner rules
+14-02-2007
+	* In pl1-scanner.l, move code from scanner rules into own functions
+		<LEXRETURNSAVEDTOKENS> 35 lines
+	- using variables
+		yytext
+		lahSaveTokensList
+		lookahead
+		YYLTYPE
+		prev_token
+		savedtemp
+	- using functions
+		unput
+		yyget_lloc
+		yyget_lval
+	- using scanner states
+		INITIAL
+	- current definition
+		<LEXRETURNSAVEDTOKENS>.|\n|\r		{  
+		  unput(*yytext);
+		  if (lahSaveTokensList->head==NULL) { 
+		    /* We are done, now back to normal */
+		    lookahead=0;
+		    lahSaveTokensList->count=0;
+		    BEGIN INITIAL;
+		  } else {
+		    /* simulate the __dupyy macro */
+		    /*
+		       set yylval,yylloc and token to saved
+		       free saved token, and return to parser
+		       when last token, then BEGIN(INITIAL)
+		    */
+		    memcpy(yyget_lloc(yyscanner),lahSaveTokensList->head->locations,sizeof(YYLTYPE));
+		    yyget_lval(yyscanner)->s=strdup(lahSaveTokensList->head->string);
+		    prev_token=lahSaveTokensList->head->token;
+		    /* now dispose the first element and move forward to next element */
+		    savedtemp=lahSaveTokensList->head;
+		    lahSaveTokensList->head=lahSaveTokensList->head->next;
+		    free(savedtemp);
+			debugLexer("%s",sprintf_yylloc(yyget_lloc(yyscanner))); 
+		    debugLexer("\tToken:%i\t>%s<\n",prev_token,yyget_lval(yyscanner)->s);
+		    return prev_token;
+		  }
+		}
+	- replaced with rule
+		<LEXRETURNSAVEDTOKENS>.|\n|\r {  
+		  unput(*yytext);
+		  
+		  if(hasMoreSavedTokens(yyscanner,lahSaveTokensList,&prev_token)<0)
+		  {   lookahead=0;
+		  	  BEGIN INITIAL;
+		  }
+		  else
+		    return prev_token;
+		}
+	- replaced with function
+		int hasMoreSavedTokens(yyscan_t yyscanner, struct anyTokenList * lahSaveTokensList, int *prev_token)
+		{ struct savedtokenlist *work;  
+		  if (lahSaveTokensList->head==NULL) { 
+		    /* We are done, now back to normal */
+		    lahSaveTokensList->count=0;
+		    return -1;
+		  } else {
+		    /* simulate the __dupyy macro */
+		    /*
+		       set yylval,yylloc and token to saved
+		       free saved token, and return to parser
+		       when last token, then BEGIN(INITIAL)
+		    */
+		    memcpy(yyget_lloc(yyscanner),lahSaveTokensList->head->locations,sizeof(YYLTYPE));
+		    yyget_lval(yyscanner)->s=strdup(lahSaveTokensList->head->string);
+		    *prev_token=lahSaveTokensList->head->token;
+		    
+		    /* now dispose the first element and move forward to next element */
+		    work=lahSaveTokensList->head;
+		    lahSaveTokensList->head=lahSaveTokensList->head->next;
+		    free(work);
+			debugLexer("%s",sprintf_yylloc(yyget_lloc(yyscanner))); 
+		    debugLexer("\tToken:%i\t>%s<\n",prev_token,yyget_lval(yyscanner)->s);
+		    return 1;
+		  }
+		}
+13-02-2007
+	* fix
+		Checking Error for  ./PL1_TEST_DO.pl1
+		Checking Error for  ./PL1_TEST_LABEL.pl1
+		Checking Error for  ./PL1_TEST_SCOPE.pl1
+	  ensure the stmtscope rule as default, invokes newScope:
+		    |   stmtscope
+					{ currentScope=newScope(currentScope,NULL,$1);
+					}
+			|	prestmtlist ':' stmtscope
+					{ 
+					  switch(($3)->i)
+					  { 
+					  	case ENTRY_STMT: 
+					  	     if(processParserStackProcedure(currentScope,$3,$1,&@3)<0) YYERROR; 
+					  	  break;
+					  	case PROCEDURE:
+					  	     currentScope=newScope(currentScope,$1,$3); 
+					  	     if(processParserStackProcedure(currentScope,$3,$1,&@3)<0) YYERROR; 
+					  	  break;
+					  	default:
+					  	currentScope=newScope(currentScope,$1,$3);
+					  	 break;
+					  } 
+					 }
+	* eliminate setParserStmtType from parseParserStack.c / .h
+		extern struct ParserStack *setParserStmtType(int i);
+		struct ParserStack *setParserStmtType(int i)
+		{ struct ParserStack *work;
+			debugParser("setParserStmtType invoked\n");
+			work=malloc(sizeof(struct ParserStack));
+			if(work==NULL) error("parseParserStack.c(setParserStmtType): out of memory.");
+			work->i=i;
+			work->l=NULL;
+			return work;
+		}
+	* eleminate setParserStack, using the parser stack directly.
+	  Change only user from
+		endstmt:	
+		        END { $$=setParserStack(END,NULL);}
+			|	END varname 
+			          { debugParser("END>%s<\n",$<s>2);
+				        $$=setParserStack(END,newListOfNames($<s>2));
+		              }
+			;
+	  to
+		endstmt:	
+		        END { $$=NEWParserStack(END);}
+			|	END varname 
+			          { debugParser("END>%s<\n",$<s>2);
+				        $$=NEWParserStack(END); $$->l=newListOfNames($<s>2);
+		              }
+			;
+	* Removed from parserParserStack.c / .h
+		struct ParserStack *setParserStack(int i, struct ListOfNames *l);
+		struct ParserStack *setParserStack(int i, struct ListOfNames *l)
+		{ struct ParserStack *work;
+			debugParser("setParserStack invoked\n");
+			work=malloc(sizeof(struct ParserStack));
+			if(work==NULL) error("parseParserStack.c(setParserStack): out of memory.");
+			work->i=i;
+			work->l=l;
+			return work;
+		}
+	* removed updateParserStmtType, from parserParserStack.c / .h
+		struct ParserStack *updateParserStmtType(struct ParserStack *ps,int i);
+		struct ParserStack *updateParserStmtType(struct ParserStack *ps,int i)
+		{  debugParser("updateParserStmtType invoked\n");
+			ps->i=i;
+			return ps;
+		}
+	* In parseParserStack.c renamed NEWParserStack to newParserStack
+	* From pl1-parser.y, move scope node functions to parseScopeNode.c
+		showScopeTree
+		showScopeTreeWhole
+		lookUpMatchingNode
+		checkNameInLabellist
+	* In pl1-scanner.l, replace function
+		isPreprocessingOnly
+	  with macro:
+		#define isPreprocessingOnly ((struct PLIParserParms *)yyget_extra(yyscanner))->preprocessOnly
+	  old code was:
+		int isPreprocessingOnly(yyscan_t yyscanner);
+		int isPreprocessingOnly(yyscan_t yyscanner)
+		{ 
+		  struct PLIParserParms *ppp;
+		  ppp=(struct PLIParserParms *)yyget_extra(yyscanner);
+		  if(ppp==NULL) {
+		  	printf("isPreprocessingOnly:Compiler parameter structure is NULL.\n");
+		  return 0;
+		  }
+		  return ppp->preprocessOnly ;
+		}
+	* From pl1-scanner.l, move
+		newppContextAnchor
+	  to the ppVariable.c, since this is where the ppContextAncher is defined.
+	  Note, newppContextAnchor is using ppPushDCLLabelStack that is also
+	  defined in ppPushDCLLabelStack.
+	* In Make-lang.in, add ppVariableStructs.h as dependent to ppVariable.h
+	* In pl1-scanner.l, remove redundant #include of ppVariableStructs.h
+12-02-2007
+	* eliminating setScope part two.
+  	  - endstmt in own parser rule
+  	  - PACKAGE, PROCEDURE and ENTRY_STMT needs special treatment:
+	    case PROCEDURE:
+	      *rv=newScope(current,scopeName,ps);
+	      rc=processParserStackProcedure(*rv,ps,scopeName,locp); 
+	      break;
+	    case ENTRY_STMT:
+	      *rv=current; 
+	      rc=processParserStackProcedure(*rv,ps,scopeName,locp);
+	      break;
+	  - Eliminate setScope from normal statements, within parser rule stmt
+	* pl1stmt is now
+		pl1stmt:   	
+		        stmt
+					{ SHOWSTMT(($1)->i);
+					  $$=($1)->i;
+					}
+			|	prestmtlist ':' stmt
+					{ SHOWSTMT(($3)->i);
+					  switch(($3)->i)
+					  { case ENTRY_STMT: 
+					  	     if(processParserStackProcedure(currentScope,$3,$1,&@3)<0) YYERROR; 
+					  	  break;
+					  	default: break;
+					  } 
+					  $$=($3)->i;
+					}
+		    |   stmtscope
+					{ SHOWSTMT(($1)->i);
+		  			  currentScope=newScope(currentScope,NULL,$1);
+					  $$=($1)->i;
+					}
+			|	prestmtlist ':' stmtscope
+					{ SHOWSTMT(($3)->i);
+					  currentScope=newScope(currentScope,$1,$3);
+					  switch(($3)->i)
+					  { case PACKAGE: break;
+					  	case PROCEDURE: 
+					  	     if(processParserStackProcedure(currentScope,$3,$1,&@3)<0) YYERROR; 
+					  	  break;
+					  	default: break;
+					  } 
+					  $$=($3)->i;
+					}
+		    |   stmtscopeend
+					{ SHOWSTMT(($1)->i);
+		  			  currentScope=endScope(currentScope,$1,((struct PLIParserParms *)yyget_extra(scanner))->scopeRoot);
+					  $$=($1)->i;
+					}
+			|	prestmtlist ':' stmtscopeend
+					{ SHOWSTMT(($3)->i); /* TODO: what happend to the label on END statement? */
+		  			  currentScope=endScope(currentScope,$3,((struct PLIParserParms *)yyget_extra(scanner))->scopeRoot);
+					  $$=($3)->i;
+					}
+			|   UNKNOWN {$$=UNKNOWN; /* this indicates an error in the scanner, or invalid input character */}
+			;
+	* setScope eliminated:
+		int setScope(
+			yyscan_t scanner
+			,struct ScopeNode *c
+			,struct ListOfNames *l
+			,struct ParserStack *ps
+			,struct ScopeNode **outScope
+			,YYLTYPE *locp
+		);
+		 /*
+		  * setScope
+		  * --------
+		  * Will create an new scope depending on the statement type. 
+		  * If the statement does not define a new scope, just return 
+		  * the current scope.
+		  * If the statement is END, then the correct scope is returned.
+		  * Returns
+		  * 	int 0: OK, scope is set
+		  *       < 0: Error code indicating a problem
+		  * Parameters
+		  *    ScopeNode *current
+		  *    ListOfNames *scopeName
+		  *    int stmtType
+		  *    ScopeNode **: new current scope. Output variable.
+		  */
+		int setScope
+		(yyscan_t scanner
+		,struct ScopeNode *current
+		,struct ListOfNames *scopeName
+		,struct ParserStack *ps
+		,struct ScopeNode **rv /* output variable */
+		,YYLTYPE *locp
+		)
+		{ 
+		  int stmtType;
+		  int rc;
+		  rc=0;
+		  stmtType=ps->i;
+		  switch(stmtType)
+		  { case _ROOT_:  
+		  	  printf("setScope: ohhh, ROOT passed anyway...\n");
+		  	  rc=-1;
+		  	break;
+		  	case BEGIN_:   
+		    case DO:        /* fall through */
+		    case PACKAGE:   /* fall through */
+		    case SELECT:    /* fall through */
+		  	  printf("setScope: ohhh, BEGIN, DO, PACKAGE, SELECT passed anyway...\n");
+		  	  rc=-1;
+		  	break;
+		    case PROCEDURE:
+		      *rv=newScope(current,scopeName,ps);
+		      rc=processParserStackProcedure(*rv,ps,scopeName,locp); 
+		      break;
+		    case ENTRY_STMT:
+		      *rv=current; 
+		      rc=processParserStackProcedure(*rv,ps,scopeName,locp);
+		      break;
+		    case END:
+		  	  printf("setScope: ohhh, BEGIN, DO, PACKAGE, SELECT passed anyway...\n");
+		  	  rc=-1;
+		      break;
+		    default:
+		      *rv=current;
+		      break;
+		  }
+		  debugParser("setScope rc=%i, returns scope named:>%s<\n",
+		          rc,
+			      allocFullLabelName((*rv)->name));
+			if (rc<0)  setCompilerMessage(scanner,rc,scopeName,locp);
+		  return rc;
+		} /* setScope */
+	* setCompilerMessage eliminated
+		int setCompilerMessage(yyscan_t scanner,int msgCode, struct ListOfNames *name,YYLTYPE *locp) ;
+		/* ============================= */
+		int setCompilerMessage(yyscan_t scanner,int msgCode, struct ListOfNames *name,YYLTYPE *locp)
+		{ char *buf;
+			switch(msgCode)
+			{ case SYNTAX_ERROR_DUPLICATE_NAME: 
+				  buf=sprintfString("Name specified in %s, is already defined at the same scope"
+				                     ,name->head->name);
+				  yyerror(locp,scanner,buf);
+				  break;
+			   case SYNTAX_ERROR:  
+				  buf=sprintfString("Unspecifed error");
+				  yyerror(locp,scanner,buf);
+			     break;
+			   default: break ;
+			} 
+			return 0;
+		}
+	* On the way to eliminating setScope function.
+	  This function was origianlly a good idea, because it makes the grammar 
+	  simple to use, but it is equilly a bad idea, because the actions that
+	  has to be done after the source has been parsed is hidden in a maze of
+	  functions and structures, that only are used as transport of information.
+	  Ultimately the information needed for the parsing, and the subsequent
+	  construction of the syntaxtree is mostly contained in the nature of the 
+	  grammar files.
+	  Current main statement parsing rule:
+		pl1stmt:   	
+		        stmt
+					{ SHOWSTMT(($1)->i);
+					  if(setScope(scanner,currentScope,NULL,$1,&currentScope,&@1)<0) YYERROR;
+					  $$=($1)->i;
+					}
+			|	prestmtlist ':' stmt
+					{ SHOWSTMT(($3)->i);
+					  if(setScope(scanner,currentScope,$1,$3,&currentScope,&@1)<0) YYERROR;
+					  $$=($3)->i;
+					}
+		    |   stmtscope
+					{ SHOWSTMT(($1)->i);
+		  			  currentScope=newScope(currentScope,NULL,$1);
+					  $$=($1)->i;
+					}
+			|	prestmtlist ':' stmtscope
+					{ SHOWSTMT(($3)->i);
+					  currentScope=newScope(currentScope,$1,$3);
+					  $$=($3)->i;
+					}
+			|   UNKNOWN {$$=UNKNOWN; /* this indicates an error in the scanner, or invalid input character */}
+			;
+	  Added new rule for statements that carries a scope node.
+		stmtscope:
+				beginstmt 
+			|	dostmt		
+			|	packagestmt	
+			|	selectstmt	
+			;
+	  Explicitly setup an stacknode for the statements
+		beginstmt:	
+				BEGIN_  { $$=newStackScopeNode(BEGIN_); }
+			|	BEGIN_ OPTIONS '(' beginstmtoptionlist ')'  { $$=newStackScopeNode(BEGIN_); /*setStatementOptions($$,$4);*/ }
+			;
+		dostmt:	do_type_1 { $$=newStackScopeNode(DO); }
+			|	do_type_2 { $$=newStackScopeNode(DO); }
+			|	do_type_3 { $$=newStackScopeNode(DO); }
+			;
+		packagestmt: 
+				PACKAGE    { $$=newStackScopeNode(PACKAGE); }
+			|	PACKAGE packagegrouplist { $$=newStackScopeNode(PACKAGE); } 
+			;
+		selectstmt:
+		        SELECT { $$=newStackScopeNode(SELECT); }
+			|	SELECT '(' expr ')' { $$=newStackScopeNode(SELECT); }
+			;
+	* ----------vvvvvvvvvvvvvv--------------------
+	* Various notes regarding different approaches to an improved parsing:
+    * Basically, to remove the setParserStack function and friends, the rules
+	   would have to do something like this
+		pl1stmtlist:
+		        pl1stmt ';'             { $$=newStmtList(&currentScope,$1); }
+			|   pl1stmtlist pl1stmt ';'	{ $$=addStmtToStmtList(&currentScope,$1,$2); }
+			; 
+		pl1stmt:   	
+		        stmt	{ if stmt is PROCEDURE or ENTRY_STMT or FORMAT_STMT then error }
+			|	prestmtlist ':' stmt    { $$=setStmtPreStmtList(&currentScope,$1,$3); } /* prestmtlist can be labels and condition prefixes */
+			;
+		stmt:
+			|	beginstmt { $$=NEWParserStack(($1)->stmttype);  $$->stmtelem=$1; }
+		beginstmt:	
+				BEGIN_  { $$=newStatementElement(BEGIN_); }
+			|	BEGIN_ OPTIONS '(' beginstmtoptionlist ')'  { $$=newStatementElement(BEGIN_); setStatementOptions($$,$4); }
+			;
+  	* figure out how to do the scope nodes. 
+  	   a) when BEGIN is met, allocate a scope node on the parser stack?
+  	   b) when pl1stmt is added to the current active statement list?
+  	   c) separate the statements into rules that do create a scope and do not
+  	  cons a)
+  	    at the time the scope node is created, the name of the scope node
+  	    is not present. This is only present when pl1stmt is reduced. This 
+  	    means functions have to be developed that can add the missing info 
+  	    to a scopeNode, plus the necessary checks.
+  	  cons b)
+  	    at the time when pl1stmtlist is reduced, it has to be decided whether
+  	    the statement carries a scope or not, this will in turn lead to a
+  	    switch statement within the addStmtToStmtList function.
+  	  cons c)
+  	    the rule for pl1stmt will have to be replicated. Not a big deal, but
+  	    still. Further there also need a stmt rule for statements that will
+  	    close a scope.
+  	* After thinking a bit harder, the scope node should be allocated as soon
+  	  as we know a new scope should be started.
+		pl1stmtlist:
+		        pl1stmt ';'             { $$=newStmtList(&currentScope,$1); }
+			|   pl1stmtlist pl1stmt ';'	{ $$=addStmtToStmtList(&currentScope,$1,$2); }
+			;
+		pl1stmt:   	
+		        stmt	{ if stmt is PROCEDURE or ENTRY_STMT or FORMAT_STMT then error }
+			|	prestmtlist ':' stmt    { if(setStmtPreStmtList($1,$3)<0) YYERROR; $$=$3;} /* prestmtlist can be labels and condition prefixes */
+			;
+		stmt:
+			|	beginstmt 
+		beginstmt:	
+				BEGIN_  { if(newStackScopeNode(BEGIN_,&$$,@1)<0) YYERROR; }
+			;
+	* inside the function setStmtPreStmtList there will only be a very limited 
+	  number of types to check. Further more the types will not be dependent of
+	  the grammar, but only on the datatypes. This will further allow both the 
+	  code and the grammar to be developed independently.
+		int setStmtPreStmtList(struct PreStmtList* prestmtlist
+		                     , YYSTYPE stmt)
+		{
+		   if (stmt->i==_SCOPENODE_) setPreStmtListForScopeNode(prestmtlist,stmt->scopenode) ;
+		   else
+		   if (stmt->i==_STMTNODE_) setPreStmtListForStmtNode(prestmtlist,stmt->stmtnode) ;
+		   return 0;   
+		}
+	  to populate the parser stack with a scopenode:
+		int newStackScopeNode(int stmtype,YYSTYPE **stack, YYLTYPE loc );
+		{ *stack=newParserStack(); 
+		  *stack->i=_SCOPENODE_; 
+		  *stack->scopenode=newUnnamedScopeNode(..., loc);
+		  return 0;
+		}
+  	  only problem is that the bison parser stack only can be a single type, and
+  	  then we have to keep the struct ParserStack around. This is Ok, but will
+  	  require some adjustments to the proposal. But still good.
+	* ---------------------^^^^^^^^^^^^^^^^^^^^^^^-----------------------------
+08-02-2007
+	* For parseParserStack.c, changed dependency on parseScopeNodeStructs.h to
+	  parseScopeNode.h
+	* In parseParserStack.c remove old and unused code 
+		/**
+		 * Update the parser stack element ps with the content of parser stack element data. The data must have the indicated type.
+		struct ParserStack *updateParserStack(int type,struct ParserStack *ps,struct ParserStack *data)
+		{	if (data==NULL) 
+			{ debugParser("updateParserStack invoked with data=NULL\n");
+			  return ps;
+			}
+			if (ps==NULL) 
+			{ debugParser("updateParserStack invoked with ps=NULL\n");
+			  return ps;
+			}
+		 	debugParser("updateParserStack invoked with valid parameters\n");
+			switch(type)
+			{ case _procgroup_ : if(ps->pgl==NULL) error("pl1-parser.y(updateParserStack): sequencing error: procgroup not allocated.");
+				                 ps->pgl=setProcGroupListParserStack(ps->pgl,data);
+			                     break;
+			  default: break ;
+			}
+			return ps;
+		}
+		/**
+		 * allocates a new parser stack element, and sets the type and content to type and ps
+		struct ParserStack *newParserStack(int type, struct ParserStack *ps)
+		{ struct ParserStack *work;
+			if(ps==NULL)
+			 debugParser("newParserStack invoked with ps=NULL\n");
+			else
+			 debugParser("newParserStack invoked\n");
+			work=malloc(sizeof(struct ParserStack));
+			if(work==NULL) error("pl1-parser.y(setParserStack): out of memory.");
+			work->i=type;
+			if (ps!=NULL)
+			{
+			switch(type)
+			{ case _procgroup_ : work->pgl=malloc(sizeof(struct ProcGroupList));
+		                         if(work->pgl==NULL) error("pl1-parser.y(setParserStack): out of memory.");
+				                 work->pgl=setProcGroupListParserStack(work->pgl,ps);
+			                     break;
+			  default: break ;
+			}
+			}
+			return work;
+		}
+07-02-2007
+	* chasing a parser stack corruption, caused by this idea:
+		pl1stmt:
+			{ $$=NULL; }
+		        stmt
+	  this gives problems for the END stmt that expects a certain context to be 
+	  present on the stack.
+	  The problem is that the extra action messes with the bison parsing algorithme,
+	  and this gives some 2000+ shift/reduce warnings.
+	* hmm. What should have been a straight forward transformation turns out to
+	  be much more involved.
+	  Basically the idea of using $0 to reference the label has to be changed to
+	  an active command in the rule where the label is matched. This probable will
+	  impact the whole scope concept, but afterwards the grammar will be clean,
+	  the struct parserStack should also be eliminated.	  
+	 * Basically, to remove the setParserStack function and friends, the rules
+	   would have to do something like this
+		pl1stmtlist:
+		        pl1stmt ';'             { $$=newStmtList(&currentScope,$1); }
+			|   pl1stmtlist pl1stmt ';'	{ $$=addStmtToStmtList(&currentScope,$1,$2); }
+			;
+		pl1stmt:   	
+		        stmt	{ if stmt is PROCEDURE or ENTRY_STMT or FORMAT_STMT then error }
+			|	prestmtlist ':' stmt    { $$=setStmtPreStmtList(&currentScope,$1,$3); } /* prestmtlist can be labels and condition prefixes */
+			;
+		stmt:
+			|	beginstmt { $$=NEWParserStack(($1)->stmttype);  $$->stmtelem=$1; }
+		beginstmt:	
+				BEGIN_  { $$=newStatementElement(BEGIN_); }
+			|	BEGIN_ OPTIONS '(' beginstmtoptionlist ')'  { $$=newStatementElement(BEGIN_); setStatementOptions($$,$4); }
+			;
+	* This seems like the correct way to go, and will also make it naturally
+	  to add other statements to the scope nodes. 
+	  It would even be possible to invoke the gcc backend from the parser rule
+	  pl1stmtlist.
+	* So the quest to eliminate setScope leads to a completely new parsing 
+	  strategy, I should say new and much improved way.
+	  The function newScopeStatementNode(...); has to be context free, and 
+	  only prepare a statement node so it can be, enriched by higher rules, and
+	  eventually be added to the list of statements for currently active scope.
+	  This is analog to how the DECLARE statement is parsed.
+	* Interesting to see how the END will pin out. Because the END is by nature 
+	  not context free, because the current scope, or even multiple scopes has
+	  to be 'closed'. For the END statement iself the 'prestmt' list is not
+	  relevant, as opposed to statements that creates a scope, like BEGIN, DO
+	  PROCEDURE, etc.
+	* Further, by using the addStmtToStmtList(...) function, it is possible to
+	  check for 'dangling' dependencies, eg. the 
+	    IF expr THEN pl1stmt ; ELSE pl1stmt
+	  when ELSE is added to the stmtList, simply check the previous stmt was an
+	  IF statement.
+	* So to implement this, without changing all the rules in one go, the 
+	  existing struct ParserStack will temporarely be extended with a new
+	  type for the basic scope leaf.
+		struct ParserStack
+		{ int i;
+		  union {
+		  void *anyPointer;
+		  struct ListOfNames *l;
+		  struct ProcGroupList *pgl;
+		  struct StatementElement *stmtelem;
+		  };
+		};	  
+	  The new ScopeLeaf should eventually be part of the scope node, as a list
+	  of statements, this could be added to parseParserStackStructs.h:
+		struct ScopeNode
+		{ struct ScopeNode *head,*tail ;
+		  struct ScopeNode *parent,*next ;
+		  struct ListOfNames *name ; /* this is really the label of the statement */
+		  struct DeclareElementList *dcl ;
+		  int stmttype; /* token number as defined in pl1.tab.h */
+		  struct StatementList *stmtlist; /* the list of PL/I statements within the ScopeNode */
+		};
+		struct StatementList
+		{ struct StatementElement *head,*tail ;
+		  int count; 
+		};
+		struct StatementElement
+		{ int type;
+		  struct StatementElement *next; 
+		};
+	`* In parserParserStack.c / .h
+   struct StatementElement *newStatementElement(int stmttype)
+   { struct StatementElement *work;
+     work=malloc(sizeof(struct StatementElement));
+     work->type=stmttype;
+     work->next=NULL;
+     return work;
+   }
+ 	* in pl1-parser.y, get rid of setScope, by inline the functions where needed.
+ 	  To do this, the parsed label name has to be passed to the rules. It could 
+ 	  done via the $0 notation.
+	- definitions:
+		int setScope(
+			yyscan_t scanner
+			,struct ScopeNode *c
+			,struct ListOfNames *l
+			,struct ParserStack *ps
+			,struct ScopeNode **outScope
+			,YYLTYPE *locp
+		);
+	- parser rules involved:
+		pl1stmt:
+		        stmt
+					{ SHOWSTMT(($1)->i);
+					  if(setScope(scanner,currentScope,NULL,$1,&currentScope,&@1)<0) YYERROR;
+					  $$=($1)->i;
+					}
+			|	prestmtlist ':' stmt
+					{ SHOWSTMT(($3)->i);
+					  if(setScope(scanner,currentScope,$1,$3,&currentScope,&@1)<0) YYERROR;
+					  $$=($3)->i;
+					}
+			|   UNKNOWN {$$=UNKNOWN;}
+			;
+	  so setScope is invoked after a stmt is parsed.
+	- current implementation
+		 /*
+		  * setScope
+		  * --------
+		  * 
+		  * Will create an new scope depending on the statement type. 
+		  * If the statement does not define a new scope, just return 
+		  * the current scope.
+		  * If the statement is END, then the correct scope is returned.
+		  * 
+		  * Returns
+		  * 	int 0: OK, scope is set
+		  *       < 0: Error code indicating a problem
+		  * 
+		  * Parameters
+		  *    ScopeNode *current
+		  *    ListOfNames *scopeName
+		  *    int stmtType
+		  *    ScopeNode **: new current scope. Output variable.
+		  * 
+		  * 
+		  */
+		int setScope
+		(yyscan_t scanner
+		,struct ScopeNode *current
+		,struct ListOfNames *scopeName
+		,struct ParserStack *ps
+		,struct ScopeNode **rv /* output variable */
+		,YYLTYPE *locp
+		)
+		{ 
+		  int stmtType;
+		  int rc;
+		  rc=0;
+		  stmtType=ps->i;
+		  switch(stmtType)
+		  { case _ROOT_:    /* fall through */
+		  	  printf("ohhh, ROOT passed anyway...\n");
+		  	  rc=-1;
+		  	break;
+		  	case BEGIN_:    /* fall through */
+		    case DO:        /* fall through */
+		    case PACKAGE:   /* fall through */
+		    case SELECT:    /* fall through */
+		      *rv=newScope(current,scopeName,ps);
+		      break;
+		    case PROCEDURE:
+		      *rv=newScope(current,scopeName,ps);
+		      rc=processParserStackProcedure(*rv,ps,scopeName,locp); 
+		      break;
+		    case ENTRY_STMT:
+		      *rv=current; 
+		      rc=processParserStackProcedure(*rv,ps,scopeName,locp);
+		      break;
+		    case END:
+		      *rv=endScope(current,ps,((struct PLIParserParms *)yyget_extra(scanner))->scopeRoot);
+		      break;
+		    default:
+		      *rv=current;
+		      break;
+		  }
+		  debugParser("setScope rc=%i, returns scope named:>%s<\n",
+		          rc,
+			      allocFullLabelName((*rv)->name));			      			      
+			if (rc<0)  setCompilerMessage(scanner,rc,scopeName,locp);			      
+		  return rc;
+		} /* setScope */
+	- so only after the following list of stmt's are setScope invoked
+		BEGIN
+		DO
+		PACKAGE
+		SELECT
+		  : newScope
+		PROCEDURE
+		  : newScope
+		  : processParserStackProcedure
+		ENTRY_STMT
+		  : processParserStackProcedure
+		END
+		  : endScope
+	- The parser rule for stmt, should be changed
+	  from:
+		|	beginstmt	{ $$=setParserStmtType(BEGIN_); }
+	  to:
+		|	beginstmt	{ $$=setParserStmtType(BEGIN_); 
+		                  currentScope=newScope(currentScope, $<l>0 "labelName" , $$; &@1); 
+		                }     
+06-02-2007
+	* Analysing redesign of parser stack and friends
+05-02-2007
+	* Analysing redesign of parser stack and friends
+04-02-2007
+	* Consolidate the pl1 parser parms functions in PLIParser.c
+		pl1-parser.y: int showWelcome(struct PLIParserParms *ppp)
+		pl1-parser.y: int pl1_parser (struct PLIParserParms *pl1parserparms);
+	* Change version number in showWelcome to 0.0.15.
+03-02-2007
+	* Initial planning for 0.0.next.
+	* =====vvv===== Removed old and obsolete comments =====vvv=====
+	* First step for scopes and their parameters.
+		- define type within %union for the entry group, that matches 
+		  the possible parsed data.
+	* Thinking about the declare structure, within each scope node.
+	* build a dictionary for each node, and make sure all functions, 
+	  will work on the datatype.
+	  struct symbolList
+	  { struct symbol *head,*tail;
+	    int numberofsymbols;
+	  }
+	  struct symbol
+	  {  struct symbol *next;
+	     struct symbol *defaultStmt; // if default is location dependent.
+	     location *definedAt;
+	     locationList *referencedBy;
+	     char *name;
+	     enum storageClass (STATIC,BASED,CONTROLLED,PARAMETER,DEFINED,AUTOMATIC)
+	     enum storageScope (INTERNAL,EXTERNAL)
+	     enum storageLayout ( (aligned, unaligned) , structure, array )
+	     enum storageType (Numeric, String, File, Entry, Proc ... )
+	     union
+	     {
+	     enum storageAttributeNumeric ((fixed,float) , (decimal,binary) , (real,complex) )
+	     enum storageAttributeString ((variable length, fixed length), bytesPerLength
+	     enum storageAttributeFile ( (RECORD,STREAM), (INPUT,OUTPUT,UPDATE), (sequential, keyed)...)
+	     enum storageAttributeEntry ( parameterList, options galore ...)
+	     enum storageAttributeProc  ( parameterList, options galore ...)
+	     } storageAttribute
+	     union
+	     {
+	     enum storageFeatureStructure ( level )
+	     } storageFeature
+	     enum storageInitial ...
+	  }
+	* how should parameter be parsed
+	* in which symbol table is the declare of a procedure name or an secondary entry point stored ? 
+	  - in the parents or in its own ?
+	  = I think it makes most sense to store it in the symbol table for
+	    the parent, because the name has to be known outside its own scope.
+	  - and the parameters of the procedure ?
+	  = will be defined in the symbol table for the procedure scope itself.
+	  - and parameters for any secondary entry points ?
+	==> For the parameters create a separate list of symbols, and attach the list
+	    to the entrypoint or procedure name.
+	* step wise implementation of parsing of declare statement.
+	- procedure entry and secondary entries
+	- parameters
+	* create first cut version of a listing file
+	* various notes
+	* Any procedure is defined in the symbollist for the parent with
+	  an implied internal attribute.
+	* parameters at the entry level is only descriptors, and only within
+	  a scope the name of a parameter is applicable.
+	  This means we must have a way to describe the descriptor of a variable.
+	* the parser rule dcloptionlist is used by a number of rules
+		dclstmt -> dclterm -> dclfactor -> dcloptionlist
+		dclpgm -> entryparm -> dcloptionlist
+		dclpgm -> genericspec -> genericwhenoption -> dcloptionlist
+		defaultstmt->defaultitemcommalist->defaultitem->defaultpredicateexpr->dcloption
+	* create initial file listing primitives
+	- sections
+		welcome
+		compiler settings
+		storagemap
+		cross reference
+		include listing
+		declare listing
+		messages
+	* in pl1-parser.y, put the scope structure as part of the parserparms. this
+	  will make it possible to do a cross ref.
+	* Check if the following is an accurate describtion of a preprocessor LABEL
+		When searching for a preprocessor label, it is first checked if the 
+		label has already been seen. This is called goto-backwards. Since the
+		location of the definiton of the label is stored, the GOTO is simply
+		done via fseek (yyin,...)
+		If the label has not been met, then the scanner will start to discard
+		tokens until the label is met. This is called goto-forwards. During the
+		discard of tokens, the comments are read as comments.
+		If the label is not met until <<EOF>> then the program is in error.
+	- Note, the IBMs compilere seems to be working differently. 
+	 		%goto ping ;
+		 	%pong: goto pang;
+		 	%ping: goto pong;
+		 	%pang:;
+		pl1gcc will fail, because when '%goto ping' is met, the label definition
+		for 'pong' is discarded, and hence never processed by the preprocessor.
+		IBMs compiler will work. 
+		This means that the way the initial scanning of the program source is
+		done most be working differently.
+	* Write generic message interface for any kind of user oriented compiler output
+		struct compilerOutput
+		{ struct listOfOutput *head,*tail;
+		  int number of output lists;
+		}
+		struct listOfOutput
+		{ char *listName ;
+		  struct listElement *head,*tail;
+		}
+		struct listElement
+		{ struct listElement *next;
+		  YYLTYPE location ;
+		  char *msg;
+		}
+		and then have
+		textOutput=newOutputList();
+		createList(textOutput,"error");
+		createList(textOutput,"warn");
+		createList(textOutput,"info");
+		createList(textOutput,"xref");
+		etc
+		addMsg("info", sprintfString("program has %i program statements",c));
+		should work.		
+		It could also be used to the real compiler listing, but that might be
+		a bit too akward.
+	- consolidate 
+		struct PLIParserParms
+		{ ...
+		  struct PLIMessage *msgErrors;
+		  struct PLIMessage *msgWarns;
+		  struct PLIMessage *msgInfos;
+		  struct PLIMessage *msgXref;
+		  ...
+		};
+	   into
+		struct PLIParserParms
+		{ ...
+		  struct compilerOutput
+		  ...
+		};
+	* =====^^^===== Removed old and obsolete comments =====^^^=====
+February 2007
+	* 0.0.14: First local reference list and include file summary
+October 2006
+	* 0.0.13: Preprocessor %GOTO, %ACTIVATE, %DEACTIVATE and %NOTE statements
+August 2006
+	* 0.0.12: Reentrant scanner and parser, and first compiler messages
+May 2006
+	* 0.0.11: Preprocessor infrastructure using flex and bison.
+March 2005
+	* 0.0.10: Multics Edition
+February 2005
+	* 0.0.9: Integration of Multics, Enterprise Edition and Visual Age syntax.
+July 2004
+	* 0.0.8: Reduce number of conflicts in grammar.
+May 2004
+	* 0.0.7: PL/I Keywords as variable names
+	* 0.0.6: Track token locations.
+March 2004
+	* 0.0.5: Recognition of multiple scope closure with one END
+	* 0.0.4: Recognition of scope bounderies with matching ENDs
+January 2004
+	* 0.0.3: Implement two pass scanning/parsing
+December 2003
+	* 0.0.2: Using standard gcc build system to call pl1 scanner and parser from version 0.0.1
+May 2002
+	* 0.0.1: Standalone PL/I scanner and parser.

@@ -1,0 +1,77 @@
+September 2007
+
+This is the fifteenth code drop of the GCC front-end for
+the PL/I programming language.
+
+PL/I for GCC is released under the terms of the
+GNU Public License; version 2.
+
+With pl1gcc-0.0.15 the preprocessor do loop, %DO, has been partly
+implemented. Only one level is allowed.
+This required quite a bit of restructuring of the 
+internal code. But now it is easy to add more preprocessor 
+statements like %IF and preprocessor %PROCEDUREs. Expect some
+more releases soon.
+Further the internal parse tree has also been improved, 
+so code generation should begin really soon now (tm).
+
+There is still no code generation taking place, so don't
+run out and deinstall your production PL/I compiler just yet :-)
+
+
+Changes in v0.0.15
+------------------
+* Restructuring parser stack
+* Improve internal interface to preprocessor
+* Synchronize with gcc version 4.3 (20070810)
+* Improved error messages with declares
+
+
+Changed syntax in v0.0.15
+-------------------------
+* Non-nested %DO varname = NUM TO NUM 
+* %NOTE can reference preprocessor variables
+
+For a complete list of changes check the CHANGELOG file.
+
+
+Source code contributions to pl1gcc
+-----------------------------------
+If you have some PL/I code you do would like to save for the future,
+then consider to release the source code either under GPL or donate it 
+to the public domain.
+pl1gcc can offer to host the code for you. 
+
+
+What is pl1gcc?
+---------------
+The pl1gcc project is an attempt to create a native PL/I compiler
+using the GNU Compiler Collection.
+
+The project is looking for more people to join development and testing, 
+it has mostly been a one man project.
+
+There are a number of interesting tasks related to the pl1gcc project, 
+where any help would be greatly appreciated.
+
+a) Error regression infrastructure
+b) Error message codes
+c) Case insensitive include name expansion
+d) Test cases
+e) Project web pages
+f) Language reference manual
+g) User guide
+h) Tutorial to PL/I
+i) Frequently asked questions
+j) Internals of pl1gcc
+k) Code generation
+
+For more information, comments, feedback and download, please visit
+http://pl1gcc.sourceforge.net
+
+Finally, remember to have some fun.
+
+Henrik Sorensen
+
+Web links mentioned:
+    http://pl1gcc.sourceforge.net

@@ -1,0 +1,16 @@
+5601-388 IBM PL/I Package/2        V1.R1.M1  28.Dec.1994  20:28:05   Page 1    
+
+
+File Reference Table
+
+  File   Name
+
+     1   D:\DEV\PROJECT\OOPLI\ALPHA001\cdog.pli
+     2   D:\DEV\PROJECT\OOPLI\ALPHA001\OOPLIRES.INC
+
+
+Component    Return Code    Messages (Total/Suppressed)    Time
+
+Compiler         0                2  /  2                   9 secs
+
+End of compilation of CDOG

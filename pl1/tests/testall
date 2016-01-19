@@ -1,0 +1,19 @@
+#!/bin/sh
+#
+# shell to invoke the pl1 compiler for all ./tests/*.pl1
+#
+# Copyright 2002, 2003-2004, Henrik Sorensen
+#
+# This file is part of GCC front-end for the PL/1 programming language, GCC PL/1.
+#
+# GCC PL/1 is free software; you can redistribute it and/or modify it
+# under the terms of the GNU General Public License as published by the
+# Free Software Foundation; version 2.
+#
+
+
+
+set +f
+for n in ./*.pl1 ; do
+  . ./testone $n
+done

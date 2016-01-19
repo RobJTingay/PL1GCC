@@ -1,0 +1,45 @@
+#!/bin/sh
+#
+# shell to invoke the pl1 compiler for one instance
+#  Can be invoked standalone (./testone blah.pl1) or from ./testall
+#
+# Copyright 2002, 2003-2004, Henrik Sorensen
+#
+# This file is part of GCC front-end for the PL/1 programming language, GCC PL/1.
+#
+# GCC PL/1 is free software; you can redistribute it and/or modify it
+# under the terms of the GNU General Public License as published by the
+# Free Software Foundation; version 2.
+
+CC="pl11"
+
+#-y: enable both flex and bison trace msgs.
+#-fparser-trace: enable only bison trace msgs.
+#-flexer-trace: enable only flex trace msgs.
+
+# the -I overrides the PL1SYSLIB environment variable
+#export PL1SYSLIB="./include/:./:../include/:../../include/:../../../include/"
+
+PLIOPT="-isuffix.incl.pl1 -I./include/:./:../include/:../../include/:../../../include/"
+PLIDBG="-y -isuffix.incl.pl1 -I./include/:./:../include/:../../include/:../../../include/"
+#TEMPPATH="/dev/shm/"
+TEMPPATH="./"
+PATH="$PATH:~/gcc/gcc"
+
+# echo "invoking gcc: $CC $PLIOPT $1 1>$TEMPPATH$1.stdout 2>$TEMPPATH$1.stderr"
+
+  $CC $PLIOPT $1 1>$TEMPPATH$1.stdout 2>$TEMPPATH$1.stderr
+
+# check return code from $CC
+if [ "$?" == "0" ]; then
+  echo "Checking OK    for " $1
+
+# rm option -f: ignore errormessages for nonexisting files
+  rm -f $1.stdout $1.stderr
+  rm -f $TEMPPATH$1.stdout $TEMPPATH$1.stderr
+
+else
+# call $CC with full debugging enabled
+  $CC $PLIDBG $1 1>$1.stdout 2>$1.stderr
+  echo "Checking Error for " $1
+fi

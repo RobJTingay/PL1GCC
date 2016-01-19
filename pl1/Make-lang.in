@@ -1,0 +1,664 @@
+# Top level makefile fragment for GCC PL/I. -*- makefile -*-
+
+#   Copyright 2002, 2003-2005 Henrik Sorensen
+
+# This file is part of GCC front-end for the PL/I programming language, GCC PL/I.
+
+# GCC PL/I is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; version 2.
+
+# GCC PL/I is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+
+# You should have received a copy of the GNU General Public License
+# along with GCC PL/I; see the file COPYING.  If not, write to
+# the Free Software Foundation, 59 Temple Place - Suite 330,
+# Boston, MA 02111-1307, USA.
+
+
+AR=ar
+
+BISON_FLAG=-v -d -t -g -r itemset
+BISON_FLAG=-v -t -r lookahead
+# -v Verbose
+# -d Define header file
+# -t Generate trace info
+# -g Produce VCG graph file of gramma
+# -r itemset: Produce list of all input states
+# -r lookahead: Produce list of possible lookahead tokens
+
+
+FLEX_FLAG=-v -d -p -i
+# -v Summary of statistics
+# -d Generate debug code
+# -p Performance report
+# -i Ignore case
+
+
+# flags for the PL/I support library
+
+PL_LIB_CFLAGS = -I$(srcdir)/pl1/libpl1/include
+# PL_LIB_LDFLAGS = -Lpl1/libpl1
+PL_LIB = -lpl1
+PL_LIB_OBJS = pl1/libpl1/PPDebugLog.o \
+              pl1/libpl1/ppIncludeFileUtils.o \
+              pl1/libpl1/PLIMessage.o \
+              pl1/libpl1/PLIParser.o \
+              pl1/libpl1/ScannerUtil.o \
+              pl1/libpl1/SavedToken.o \
+              pl1/libpl1/TokenLocation.o \
+              pl1/libpl1/TokenBasedLookahead.o \
+              pl1/libpl1/ppVariable.o \
+              pl1/libpl1/parseParserStack.o \
+              pl1/libpl1/parseProcGroupList.o \
+              pl1/libpl1/parseScopeNode.o \
+              pl1/libpl1/parseProcOptionList.o \
+              pl1/libpl1/parseDclOptionList.o \
+              pl1/libpl1/parseDclStmt.o \
+              pl1/libpl1/parseMisc.o 
+
+PL_OBJS = pl1/pl1.tab.o \
+		  pl1/lex.yy.o  \
+		  pl1/pl1pp-parser.o 
+
+
+
+# back end compiler libraries etc
+TREE_BE_LIBS = $(BACKEND) $(LIBIBERTY) $(INTLIBS) $(LIBS) $(LIBDEPS)
+
+
+GCC_EXTRAS = -B./ -B$(build_tooldir)/bin/ -isystem $(build_tooldir)/include
+
+# ./xgcc is the just built compiler. See GCC_FOR_TARGET in the GCC Makefile.in.
+# If this can't be found, you probably have not done a bootstrap of GCC,
+# which you need to do.
+
+# GCC_FOR_PL1 = ./xgcc $(GCC_EXTRAS)
+
+PL1_GENERATED = pl1/lex.yy.c pl1/pl1.tab.c pl1/pl1pp-parser.c pl1/pl1pp-parser.h \
+	pl1/pl1.tab.h pl1/pl1.output $(srcdir)/pl1/TAGS
+
+PL1_SOURCE = ${srcdir}/pl1/pl1-parser.y ${srcdir}/pl1/pl1-scanner.l \
+ ${srcdir}/pl1/pl11.c ${srcdir}/pl1/pl1lang.h \
+ ${srcdir}/pl1/pl1tree.c $(srcdir)/pl1/pl1tree.h 
+
+PL1_COMMON_INCLUDE = ${srcdir}/pl1/libpl1/include
+PL1_DEBUG = pl1/libpl1/include/PPDebugLog.h
+
+
+PL1_EXES = pl11$(exeext)
+
+# Define the names for selecting PL/I in LANGUAGES.
+
+.PHONY : pl1 PL1
+
+pl1 PL1: pl1.done
+
+pl1.done: pl11$(exeext)
+	$(STAMP) pl1.done
+
+#
+# rule to make sure the support library is made
+#
+
+pl1/libpl1/libpl1.a: @pl1/libpl1  $(PL_LIB_OBJS) $(PL_OBJS)
+	@echo "*** Archiving PL/I support library ***"
+	$(AR) crs pl1/libpl1/libpl1.a $(PL_LIB_OBJS) $(PL_OBJS)
+	
+#
+# options for ar:
+#   c: create the archive
+#   r: add with replace
+#   s: create index of object files
+#
+	
+	
+# NOTE: since the pl1/libpl1 already exists in the source environment, 
+# and it has to be created in the target environment, prefix the name 
+# with @ to prevent make from seeing the srcdir/pl1/libpl1
+# Options for test
+#   d: test if file is a directory
+# Options for mkdir: 
+#   p: create parents
+.PHONY : @pl1/libpl1
+@pl1/libpl1:
+	@echo *** PL/I Current dir is $${PWD}, srcdir is $(srcdir) ***
+	test -d pl1/libpl1 || mkdir -p pl1/libpl1
+
+#
+# NOTE: we have to make sure the main parser gets generated up front so
+# that the token definition numbers can be used throughout the front end
+# and the preprocessor.
+#
+
+#pl1_init: pl1/pl1.tab.h
+
+#
+# this is the rule to build the PL/I front to GCC.  This rule will be 
+# invoked automatically by the top level Makefile in 'objdir'.
+#
+
+#removed dependency pl1_init pl1_lib
+#pl11$(exeext): pl1/libpl1/libpl1.a \
+#      pl1/pl11.o pl1/pl1tree.o pl1/tree-convert.o \
+#	pl1/lex.yy.o pl1/pl1.tab.o pl1/pl1pp-parser.o \
+#	$(TREE_BE_LIBS) attribs.o 
+#	@echo "Libs $(TREE_BE_LIBS)\n" > t.libs
+#	@echo "*** Making PL/I Front End ***"
+#	$(CC) $(PL_LIB_LDFLAGS) $(ALL_CFLAGS) $(LDFLAGS) -o $@ \
+#	pl1/pl11.o pl1/pl1tree.o pl1/tree-convert.o \
+#	pl1/pl1.tab.o \
+#	pl1/lex.yy.o \
+#	pl1/pl1pp-parser.o \
+#	$(TREE_BE_LIBS) attribs.o $(PL_LIB) -lm 
+
+# replaced $(PL_LIB), $(PL_LIB_FLAG) with  $(PL_LIB_OBJS)
+pl11$(exeext):  @pl1/libpl1 $(PL_LIB_OBJS) \
+	    pl1/pl11.o pl1/pl1tree.o pl1/tree-convert.o \
+		$(PL_OBJS) \
+		$(TREE_BE_LIBS) attribs.o \
+		pl1/libpl1/libpl1.a 
+		@echo "Libs $(TREE_BE_LIBS)\n" > t.libs
+		@echo "*** Making PL/I Front End ***"
+		$(CC) $(ALL_CFLAGS) $(LDFLAGS) -o $@ \
+		pl1/pl11.o pl1/pl1tree.o pl1/tree-convert.o \
+		$(PL_OBJS) \
+		$(PL_LIB_OBJS) \
+		$(TREE_BE_LIBS) attribs.o -lm 
+
+#
+# Compiling object files from source files.
+
+# object file makes
+
+
+pl1/pl11.o: pl1/pl11.c $(CONFIG_H) $(SYSTEM_H) coretypes.h $(TM_H) \
+  flags.h toplev.h $(GGC_H) $(TREE_H) diagnostic.h \
+  pl1/pl1lang.h pl1/pl1tree.h $(PL1_DEBUG) \
+  pl1/libpl1/include/PLIParser.h \
+  input.h options.h opts.h \
+  gtype-pl1.h
+	$(CC) -c $(ALL_CFLAGS) $(ALL_CPPFLAGS) $(INCLUDES) -I$(PL1_COMMON_INCLUDE) $< $(OUTPUT_OPTION)
+
+pl1/pl1tree.o: pl1/pl1tree.c $(CONFIG_H) $(SYSTEM_H) coretypes.h \
+  $(TM_H) $(TREE_H) flags.h output.h $(RTL_H) $(GGC_H) toplev.h \
+  $(LANGHOOKS_DEF_H) langhooks.h pl1/pl1lang.h input.h \
+  pl1/pl1tree.h pl1/pl1.tab.h
+#XXX  varray.h $(LANGHOOKS_DEF_H) langhooks.h pl1/pl1lang.h input.h \
+
+
+pl1/tree-convert.o: pl1/tree-convert.c $(CONFIG_H) $(SYSTEM_H) \
+  coretypes.h diagnostic.h $(TREE_H) flags.h toplev.h langhooks.h $(TM_H)
+
+pl1/pl1.tab.o: pl1/pl1.tab.c $(PL1_DEBUG)
+	$(CC) -c $(ALL_CFLAGS) $(ALL_CPPFLAGS) -Wall $(INCLUDES) -I$(PL1_COMMON_INCLUDE) $< $(OUTPUT_OPTION)
+
+pl1/lex.yy.o: pl1/lex.yy.c pl1/pl1.tab.h pl1/pl1pp-parser.h $(PL1_DEBUG)
+	$(CC) -c -O0 -Wall $(INCLUDES) -I$(PL1_COMMON_INCLUDE) $< $(OUTPUT_OPTION)
+#    $(CC) -c -O0 -Wall $(INCLUDES) -I$(PL1_COMMON_INCLUDE) $< $(OUTPUT_OPTION)
+
+# note: -DPL1PP_PARSER, is necessary when including the preprocessor in other module.
+pl1/pl1pp-parser.o: pl1/pl1pp-parser.c pl1/pl1pp-parser.h $(PL1_DEBUG)
+	$(CC) -c $(ALL_CFLAGS) $(ALL_CPPFLAGS) $(INCLUDES) -I$(PL1_COMMON_INCLUDE) $< $(OUTPUT_OPTION)
+
+#
+# libpl1 (support lib) objects
+#
+
+pl1/libpl1/PPDebugLog.o: \
+  pl1/libpl1/src/PPDebugLog.c \
+  pl1/libpl1/include/PPDebugLog.h 
+	$(CC) -c $(PL_LIB_CFLAGS) $(ALL_CFLAGS) $(ALL_CPPFLAGS) $(INCLUDES) $< $(OUTPUT_OPTION)
+
+pl1/libpl1/include/TokenLocation.h: pl1/libpl1/include/TokenLocationStructs.h
+	touch ${srcdir}/$@
+
+pl1/libpl1/TokenLocation.o: \
+  pl1/libpl1/src/TokenLocation.c \
+  pl1/libpl1/include/TokenLocationStructs.h \
+  pl1/libpl1/include/PLIParserStructs.h \
+  pl1/libpl1/include/PPDebugLog.h 
+	$(CC) -c $(PL_LIB_CFLAGS) $(ALL_CFLAGS) $(ALL_CPPFLAGS) $(INCLUDES) $< $(OUTPUT_OPTION)
+
+pl1/libpl1/ScannerUtil.o: \
+  pl1/libpl1/src/ScannerUtil.c \
+  pl1/libpl1/include/PPDebugLog.h \
+  pl1/libpl1/include/ScannerUtil.h 
+	$(CC) -c $(PL_LIB_CFLAGS) $(ALL_CFLAGS) $(ALL_CPPFLAGS) $(INCLUDES) $< $(OUTPUT_OPTION)
+
+pl1/libpl1/TokenBasedLookahead.o: \
+  pl1/libpl1/src/TokenBasedLookahead.c \
+  pl1/libpl1/include/PPDebugLog.h \
+  pl1/libpl1/include/TokenBasedLookahead.h \
+  pl1/pl1.tab.h \
+  pl1/libpl1/include/SavedTokenStructs.h 
+	$(CC) -c $(PL_LIB_CFLAGS) $(ALL_CFLAGS) $(ALL_CPPFLAGS) $(INCLUDES) $< $(OUTPUT_OPTION) -Ipl1
+
+pl1/libpl1/SavedToken.o: \
+  pl1/libpl1/src/SavedToken.c \
+  pl1/libpl1/include/PPDebugLog.h \
+  pl1/libpl1/include/SavedToken.h \
+  pl1/libpl1/include/SavedTokenStructs.h \
+  pl1/libpl1/include/TokenLocationStructs.h 
+	$(CC) -c $(PL_LIB_CFLAGS) $(ALL_CFLAGS) $(ALL_CPPFLAGS) $(INCLUDES) $< $(OUTPUT_OPTION) 
+
+pl1/libpl1/ppIncludeFileUtils.o: \
+  pl1/libpl1/src/ppIncludeFileUtils.c \
+  pl1/libpl1/include/PPDebugLog.h \
+  pl1/libpl1/include/PLIMessage.h \
+  pl1/libpl1/include/PLIParserStructs.h \
+  pl1/libpl1/include/ppIncludeFileUtils.h 
+	$(CC) -c $(PL_LIB_CFLAGS) $(ALL_CFLAGS) $(ALL_CPPFLAGS) $(INCLUDES) $< $(OUTPUT_OPTION)
+
+
+pl1/libpl1/include/PLIMessage.h: \
+  pl1/libpl1/include/PLIMessageStructs.h \
+  pl1/libpl1/include/PLIParserStructs.h 
+	touch ${srcdir}/$@
+
+pl1/libpl1/PLIMessage.o: \
+  pl1/libpl1/src/PLIMessage.c \
+  pl1/libpl1/include/PLIMessageStructs.h \
+  pl1/libpl1/include/TokenLocationStructs.h \
+  pl1/libpl1/include/PLIParserStructs.h 
+	$(CC) -c $(PL_LIB_CFLAGS) $(ALL_CFLAGS) $(ALL_CPPFLAGS) $(INCLUDES) $< $(OUTPUT_OPTION)
+
+pl1/libpl1/include/ppVariable.h: pl1/libpl1/include/ppVariableStructs.h
+	touch ${srcdir}/$@
+
+pl1/libpl1/ppVariable.o: \
+  pl1/libpl1/src/ppVariable.c \
+  pl1/libpl1/include/PPDebugLog.h \
+  pl1/libpl1/include/ppIncludeFileUtils.h \
+  pl1/libpl1/include/TokenLocation.h \
+  pl1/libpl1/include/ppVariableStructs.h 
+	$(CC) -c $(PL_LIB_CFLAGS) $(ALL_CFLAGS) $(ALL_CPPFLAGS) $(INCLUDES) $< $(OUTPUT_OPTION)
+
+pl1/libpl1/parseProcGroupList.o: \
+  pl1/libpl1/src/parseProcGroupList.c \
+  pl1/libpl1/include/parseProcGroupListStructs.h \
+  pl1/libpl1/include/parseProcOptionList.h \
+  pl1/libpl1/include/parseDclOptionList.h \
+  pl1/libpl1/include/parseParserStack.h \
+  pl1/libpl1/include/parseScopeNodeStructs.h \
+  pl1/libpl1/include/parseMisc.h \
+  pl1/libpl1/include/PPDebugLog.h \
+  pl1/pl1.tab.h 
+	$(CC) -c $(PL_LIB_CFLAGS) $(ALL_CFLAGS) $(ALL_CPPFLAGS) $(INCLUDES) $< $(OUTPUT_OPTION)  -Ipl1
+
+
+pl1/libpl1/include/parseParserStack.h: pl1/libpl1/include/parseParserStackStructs.h
+	touch ${srcdir}/$@
+
+pl1/libpl1/parseParserStack.o: \
+  pl1/libpl1/src/parseParserStack.c \
+  pl1/libpl1/include/parseParserStackStructs.h \
+  pl1/libpl1/include/parseScopeNode.h \
+  pl1/libpl1/include/parseProcGroupList.h \
+  pl1/libpl1/include/parseMisc.h \
+  pl1/libpl1/include/PPDebugLog.h 
+	$(CC) -c $(PL_LIB_CFLAGS) $(ALL_CFLAGS) $(ALL_CPPFLAGS) $(INCLUDES) $< $(OUTPUT_OPTION)
+
+pl1/libpl1/include/parseScopeNode.h: pl1/libpl1/include/parseScopeNodeStructs.h
+	touch ${srcdir}/$@
+
+pl1/libpl1/parseScopeNode.o: \
+  pl1/libpl1/src/parseScopeNode.c \
+  pl1/libpl1/include/parseScopeNodeStructs.h \
+  pl1/libpl1/include/parseParserStackStructs.h \
+  pl1/libpl1/include/parseDclStmt.h \
+  pl1/libpl1/include/parseMisc.h \
+  pl1/libpl1/include/PPDebugLog.h \
+  pl1/yyFlex.h \
+  pl1/pl1.tab.h 
+	$(CC) -c $(PL_LIB_CFLAGS) $(ALL_CFLAGS) $(ALL_CPPFLAGS) $(INCLUDES) $< $(OUTPUT_OPTION) -Ipl1
+
+pl1/libpl1/include/parseProcOptionList.h: pl1/libpl1/include/parseProcOptionListStructs.h
+	touch ${srcdir}/$@
+
+pl1/libpl1/parseProcOptionList.o: \
+  pl1/libpl1/src/parseProcOptionList.c \
+  pl1/libpl1/include/parseProcOptionListStructs.h \
+  pl1/libpl1/include/parseScopeNodeStructs.h \
+  pl1/libpl1/include/parseParserStackStructs.h \
+  pl1/libpl1/include/parseMisc.h \
+  pl1/libpl1/include/PPDebugLog.h 
+	$(CC) -c $(PL_LIB_CFLAGS) $(ALL_CFLAGS) $(ALL_CPPFLAGS) $(INCLUDES) $< $(OUTPUT_OPTION)
+
+pl1/libpl1/include/parseDclOptionList.h: pl1/libpl1/include/parseDclOptionListStructs.h
+	touch ${srcdir}/$@
+
+pl1/libpl1/parseDclOptionList.o: \
+  pl1/libpl1/src/parseDclOptionList.c \
+  pl1/libpl1/include/parseDclOptionListStructs.h \
+  pl1/libpl1/include/parseMisc.h \
+  pl1/libpl1/include/PPDebugLog.h 
+	$(CC) -c $(PL_LIB_CFLAGS) $(ALL_CFLAGS) $(ALL_CPPFLAGS) $(INCLUDES) $< $(OUTPUT_OPTION)
+
+
+pl1/libpl1/include/parseDclStmt.h: \
+  pl1/libpl1/include/parseDclStmtStructs.h \
+  pl1/libpl1/include/PLIParserStructs.h
+	touch ${srcdir}/$@
+
+pl1/libpl1/parseDclStmt.o: \
+  pl1/libpl1/src/parseDclStmt.c \
+  pl1/libpl1/include/parseProcOptionList.h \
+  pl1/libpl1/include/parseDclStmtStructs.h \
+  pl1/libpl1/include/PLIParserStructs.h \
+  pl1/libpl1/include/TokenLocation.h \
+  pl1/libpl1/include/parseMisc.h \
+  pl1/libpl1/include/PLIMessage.h \
+  pl1/libpl1/include/PPDebugLog.h 
+	$(CC) -c $(PL_LIB_CFLAGS) $(ALL_CFLAGS) $(ALL_CPPFLAGS) $(INCLUDES) $< $(OUTPUT_OPTION)
+
+
+pl1/libpl1/include/parseMisc.h: pl1/libpl1/include/parseMiscStructs.h
+	touch ${srcdir}/$@
+
+pl1/libpl1/parseMisc.o: \
+  pl1/libpl1/src/parseMisc.c \
+  pl1/libpl1/include/parseMiscStructs.h \
+  pl1/libpl1/include/PPDebugLog.h 
+	$(CC) -c $(PL_LIB_CFLAGS) $(ALL_CFLAGS) $(ALL_CPPFLAGS) $(INCLUDES) $< $(OUTPUT_OPTION)
+
+pl1/libpl1/include/PLIParser.h: \
+  pl1/libpl1/include/PLIParserStructs.h \
+  pl1/libpl1/include/TokenLocationStructs.h 
+	touch ${srcdir}/$@
+
+pl1/libpl1/PLIParser.o: \
+  pl1/libpl1/src/PLIParser.c \
+  pl1/libpl1/include/PLIMessage.h \
+  pl1/libpl1/include/PLIParserStructs.h \
+  pl1/libpl1/include/TokenLocation.h \
+  pl1/libpl1/include/parseParserStackStructs.h \
+  pl1/libpl1/include/parseScopeNode.h \
+  pl1/libpl1/include/parseDclStmt.h \
+  pl1/libpl1/include/parseDclOptionList.h \
+  pl1/libpl1/include/PPDebugLog.h \
+  pl1/pl1.tab.h \
+  pl1/yyFlex.h \
+  pl1/libpl1/include/parseMiscStructs.h
+	$(CC) -c $(PL_LIB_CFLAGS) $(ALL_CFLAGS) $(ALL_CPPFLAGS) $(INCLUDES) $< $(OUTPUT_OPTION)  -Ipl1
+
+#
+# flex and bison lex/yacc
+#
+
+pl1/lex.yy.c pl1/yyFlex.h: pl1/pl1-scanner.l pl1/pl1.tab.h pl1/pl1pp-parser.h \
+ pl1/libpl1/include/PPDebugLog.h \
+ pl1/libpl1/include/TokenLocationStructs.h \
+ pl1/libpl1/include/TokenLocation.h \
+ pl1/libpl1/include/ScannerUtil.h \
+ pl1/libpl1/include/TokenBasedLookahead.h \
+ pl1/libpl1/include/SavedToken.h \
+ pl1/libpl1/include/SavedTokenStructs.h \
+ pl1/libpl1/include/PLIMessage.h \
+ pl1/libpl1/include/PLIParser.h \
+ pl1/libpl1/include/ppVariableStructs.h 
+	flex $(FLEX_FLAG) --header-file=pl1/yyFlex.h -opl1/lex.yy.c ${srcdir}/pl1/pl1-scanner.l 
+
+pl1/pl1.tab.c pl1/pl1.tab.hx: pl1/pl1-parser.y   \
+ pl1/libpl1/include/PPDebugLog.h \
+ pl1/libpl1/include/PLIMessage.h \
+ pl1/libpl1/include/PLIParserStructs.h \
+ pl1/libpl1/include/parseScopeNode.h \
+ pl1/libpl1/include/parseDclOptionList.h \
+ pl1/libpl1/include/parseProcGroupList.h \
+ pl1/libpl1/include/parseProcOptionList.h \
+ pl1/libpl1/include/parseDclStmt.h \
+ pl1/libpl1/include/parseMisc.h \
+ pl1/libpl1/include/TokenLocation.h \
+ pl1/libpl1/include/TokenLocationStructs.h
+	bison $(BISON_FLAG) ${srcdir}/pl1/pl1-parser.y -o pl1/pl1.tab.c --defines=pl1/pl1.tab.hx
+
+pl1/pl1pp-parser.c pl1/pl1pp-parser.hx: pl1/pl1pp-parser.y \
+ pl1/libpl1/include/PPDebugLog.h \
+ pl1/libpl1/include/TokenLocationStructs.h \
+ pl1/libpl1/include/SavedTokenStructs.h \
+ pl1/libpl1/include/ppIncludeFileUtils.h \
+ pl1/libpl1/include/TokenLocation.h \
+ pl1/libpl1/include/ppVariableStructs.h \
+ pl1/libpl1/include/ppVariable.h
+	bison $(BISON_FLAG) ${srcdir}/pl1/pl1pp-parser.y -o pl1/pl1pp-parser.c --defines=pl1/pl1pp-parser.hx
+
+#
+# diff-check
+#
+# function to determine is a file really has changed, 
+# when comparing the content,
+# instead of the timestamp 	
+# it will create two files with extensions
+#    diffcheck: contains one line iff the files are different
+#    diff: contrains the actual diff.
+#
+# options for test
+# -s: returns true if size of file is not zero
+# options for diff
+# -q: just compare files, and report single line if differences else nothing.
+#
+define diff-check
+rm -f $@.diffcheck || echo .
+diff -q $@ $< >$@.diffcheck 2>$@.diffcheck || echo .
+diff $@ $< >$@.diff 2>/dev/null || echo .
+test -s $@.diffcheck && (cp -f $< $@ && echo content of $@ has changed) || echo content of $@ is unchanged
+endef
+
+# only overwrite *.h file if the content has changed
+pl1/pl1.tab.h: pl1/pl1.tab.hx
+	$(diff-check)
+
+# only overwrite *.h file if the content has changed
+pl1/pl1pp-parser.h: pl1/pl1pp-parser.hx
+	$(diff-check)
+
+
+# -v
+
+gtype-pl1.h : s-gtype; @true
+
+#
+# Build hooks:
+
+pl1.all.build: pl1
+pl1.all.cross:
+	_error_not_here_yet - havent even thought about it - it may even work
+
+pl1.start.encap:
+pl1.rest.encap:
+
+pl1.tags: force
+	cd $(srcdir)/pl1; etags *.y *.l *.c *.h
+
+.phony:pl1.info
+pl1.info: $(srcdir)/pl1/pl1.info
+
+$(srcdir)/pl1/pl1.info: $(srcdir)/pl1/pl1.texi \
+	 $(srcdir)/doc/include/gcc-common.texi \
+	 $(srcdir)/doc/include/gpl.texi \
+	 $(srcdir)/doc/include/fdl.texi \
+	 $(srcdir)/doc/include/funding.texi
+#	cd $(srcdir) && $(MAKEINFO) $(MAKEINFOFLAGS) -I$(srcdir)/doc/include \
+	$(MAKEINFO) $(MAKEINFOFLAGS) -I$(srcdir)/doc/include \
+	-o pl1/pl1.info $(srcdir)/pl1/pl1.texi
+
+pl1.dvi: $(srcdir)/pl1/pl1.texi \
+	 $(srcdir)/doc/include/gcc-common.texi \
+	 $(srcdir)/doc/include/gpl.texi \
+	 $(srcdir)/doc/include/fdl.texi \
+	 $(srcdir)/doc/include/funding.texi
+	s=`cd $(srcdir); ${PWD}`; export s; \
+	cd pl1 && $(TEXI2DVI) -I $$s/doc/include $$s/pl1/pl1.texi
+
+pl1.generated-manpages:
+
+#
+# Install hooks:
+
+# Nothing to do here.
+pl1.install-normal: pl1.install.common
+
+# Install
+.phony:pl1.install.common
+.phony:pl1.install
+
+pl1.install pl1.install.common pl1.install-common: pl1.install.common.done
+
+pl1.install.common.done:  installdirs pl1.done
+	for name in $(PL1_EXES); \
+	do \
+	   if [ -f $$name ] ; then \
+	    name2="`echo \`basename $$name\` | sed -e '$(program_transform_name)' `"; \
+	    rm -f $(DESTDIR)$(bindir)/$$name2$(exeext); \
+	    echo $(INSTALL_PROGRAM) $$name$(exeext) $(DESTDIR)$(bindir)/$$name2$(exeext); \
+	    $(INSTALL_PROGRAM) $$name$(exeext) $(DESTDIR)$(bindir)/$$name2$(exeext); \
+	    chmod a+x $(DESTDIR)$(bindir)/$$name2$(exeext); \
+	  fi ; \
+	done
+	$(STAMP) pl1.install.common.done
+
+# We might not be able to build the info files
+.PHONY: pl1.
+pl1.:
+pl1.install-info: pl1.$(BUILD_INFO)
+	if [ -f $(srcdir)/pl1/pl1.info ] ; then \
+	  rm -f $(DESTDIR)$(infodir)/pl1.info*; \
+	  for f in $(srcdir)/pl1/pl1.info*; do \
+	      realfile=`echo $$f | sed -e 's|.*/\([^/]*\)$$|\1|'`; \
+	      $(INSTALL_DATA) $$f $(DESTDIR)$(infodir)/$$realfile; \
+	  done; \
+	  chmod a-x $(DESTDIR)$(infodir)/pl1.info*; \
+	else true; fi
+	@if [ -f $(srcdir)/pl1/pl1.info ] ; then \
+	  if $(SHELL) -c 'install-info --version | sed 1q | fgrep -s -v -i debian' >/dev/null 2>&1; then \
+	    echo " install-info --info-dir=$(DESTDIR)$(infodir) $(DESTDIR)$(infodir)/pl1.info"; \
+	    install-info --info-dir=$(DESTDIR)$(infodir) $(DESTDIR)$(infodir)/pl1.info || : ; \
+	  else : ; fi; \
+	else : ; fi
+
+pl1.man:
+pl1.install-man:
+
+pl1.uninstall:
+	for name in $(PL1_EXES); \
+	do \
+	  echo $$name; \
+	  name2="`echo $$name | sed -e '$(program_transform_name)' `"; \
+	  echo becomes $$name2; \
+	  echo -rm -rf $(DESTDIR)$(bindir)/$$name2$(exeext); \
+	  rm -rf $(DESTDIR)$(bindir)/$$name2$(exeext); \
+	done
+	-rm pl1.install.common.done
+
+#
+# Clean hooks:
+# A lot of the ancillary files are deleted by the main makefile.
+# We just have to delete files specific to us.
+
+pl1.mostlyclean:
+	for name in $(PL1_EXES); \
+	do \
+	  echo deleting $$name; \
+	  if [ -f pl1/$$name$(exeext) ] ; then \
+	    rm -f pl1/$$name$(exeext); \
+	  fi ; \
+	done
+	-rm -f pl1/*$(objext)
+	-rm -f pl1/*$(coverageexts)
+	-rm pl1.done
+
+
+pl1.clean: pl1.mostlyclean
+
+pl1.distclean: pl1.clean
+	-rm -f pl1/config.status
+	-rm -f pl1/*.output
+	-rm -f pl1/tests/*.s
+	-rm -f pl1/tests/*.pl1.html
+	-rm -f pl1/tests/*.stderr
+	-rm -f pl1/tests/*.stdout
+
+pl1.extraclean: pl1.distclean
+
+pl1.maintainer-clean: pl1.extraclean
+	for name in $(PL1_GENERATED); \
+	do \
+	  if [ -f $(srcdir)/pl1/$$name ] ; then \
+             echo deleting $(srcdir)/pl1/$$name; \
+	     rm -f $(srcdir)/pl1/$$name; \
+	  fi ; \
+	done
+	-rm -R $(srcdir)/pl1/*~
+
+
+#
+# Stage hooks:
+# The main makefile has already created stage?/pl1.
+
+pl1.stage1: stage1-start
+	-mv pl1/*$(objext) stage1/pl1
+pl1.stage2: stage2-start
+	-mv pl1/*$(objext) stage2/pl1
+pl1.stage3: stage3-start
+	-mv pl1/*$(objext) stage3/pl1
+pl1.stage4: stage4-start
+	-mv pl1/*$(objext) stage4/pl1
+#
+# Maintenance hooks:
+
+# This target creates the files that can be rebuilt, but go in the
+# distribution anyway.  It then copies the files to the distdir directory.
+pl1.distdir:
+#	not here yet sorry not sure if this is needed or not???
+
+# test hook
+# the other languages are hard coded in the main makefile.in - that seems to be wrong
+
+check-pl1: pl1.check
+
+TESTSUITEDIR = testsuite
+
+pl1.check: $(TESTSUITEDIR)/site.exp
+	-mkdir testsuite/pl1
+
+# these three files are empty and it seems diff has trouble generating
+# patch files for new empty files as required for cvs.
+# STAMP does not cut it here as I need an empty file.
+	touch $(srcdir)/testsuite/pl1/{a01gcco01runpgmerr,a01gcc.out01,a01gcc.out01err}
+	-rootme=`${PWD}`; export rootme; \
+	srcdir=`cd ${srcdir}; ${PWD}` ; export srcdir ; \
+	cd testsuite; \
+	EXPECT=${EXPECT} ; export EXPECT ; \
+	TRANSFORM=$(program_transform_name); export TRANSFORM; \
+	if [ -f $${rootme}/../expect/expect ] ; then  \
+	   TCL_LIBRARY=`cd .. ; cd ${srcdir}/../tcl/library ; ${PWD}` ; \
+	   export TCL_LIBRARY ; fi ; \
+	PATH=`cd ..;${PWD}`:$$PATH; export PATH; \
+	gcc_extras="-B`cd ..;${PWD}` -B`cd ..;${PWD}`/pl1"; export gcc_extras; \
+	$(RUNTEST) --tool pl1 $(RUNTESTFLAGS)
+	rm $(srcdir)/testsuite/pl1/{a01gcco01runpgmerr,a01gcc.out01,a01gcc.out01err}
+#	GCC_EXTRAS="$(GCC_EXTRAS)"; export GCC_EXTRAS; \
+
+# copy the output files from the current test to source ie say the new results are OK
+pl1.check.fix: force
+	srcdir=`cd ${srcdir}; ${PWD}` ; export srcdir ;
+	-cp testsuite/pl1/*.out* t
+	-cp testsuite/pl1/*runpgm* t
+	-rm -f t/*nofilename
+
+pl1.wc: force
+	wc  ${PL1_SOURCE}
+
+#
+
+.PHONY: pl1.html
+
+pl1.html:
+	cd $(srcdir)/pl1 && texi2html -I ../doc/include -verbose -menu -split_chapter -number pl1.texi
+
+
+#	mv pl1*.html $(srcdir)/pl1

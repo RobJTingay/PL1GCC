@@ -1,0 +1,129 @@
+INSTALL for Windows, February 2007
+
+Installation help for the GCC front-end for the PL/I programming language.
+
+GCC PL/I is released under the terms of GNU Public License; Version 2.
+
+** PLEASE READ CAREFULLY **
+Personally I have very limited opportunity to test this installation myself,
+and would appreciate any feedback if you actually tries this.
+  - Henrik
+
+
+** Easy Install **
+Download the gccpl1 package from SourceForge.
+You will need it if you wish to build the gccpl1 compiler for yourself.
+You will need to download/install Cygwin as well in order to get several DLL's
+See instructions below for Cygwin install.
+
+Create a folder (say: C:\gccpl1)
+When the Cygwin install is finished...
+Copy the pl1gcc Windows executable into it
+also copy cygiconv-2.dll cygwin.dll and cygz.dll to C:\gccpl1
+copy the BAT file "testall.bat" to C:\gccpl1
+ensure the PL1 test file are in the C:\gccpl1 folder
+bring up the DOS command prompt
+run the "testall" BAT from the command line
+verify that the results are OK
+** End of easy install **
+
+
+
+** Building the gccpl1 compiler for yourself **
+
+-------- download and install CYGWIN ------------
+Download cygwin SETUP.EXE from
+http://cygwin.com/
+
+create folders to store the Cygwin downloaded "packages" and executables in
+I suggest that they are different, say ...
+C:\cygwin_src
+C:\cygwin
+respectively
+
+run the SETUP.EXE and you are prompted to select a download site
+we suggest that you run under an "administrator" userid
+you will need to state the C:\cygwin and C:\cygwin_src folders
+
+next you will be prompted to select the download elements
+The Cygwin core elements are selected by default
+
+Expand the DEVEL and choose to download GCC core, Bison, and Flex
+
+After the downloads and install has finished, you should have running cygwin environment on your machine.
+To ensure your home directory is setup correctly, and that the basic commands
+works these commands should work:
+	cd ~
+	gcc --version
+	flex --version
+	bison --version
+
+
+-------- now build the gccpl1 compiler using the gcc "C" compiler inside Cygwin -----------
+Unpack ( or unzip) the separately downloaded gccpl1 package
+Copy/Move that file structure to C:\pl1gcc\pl1
+
+Create a link from gcc source directory to your unpacked pl1 library:
+	cd /gcc-src/gcc
+	ln -s /pl1gcc/pl1 pl1
+
+You can start to build your downloaded compiler.
+This might take a while.
+Now do:
+	cd /gcc/gcc
+	../gcc-src/gcc/configure
+	make
+
+and go enjoy some of your favorite bewerages.
+
+When the compile is done, it is time to test the new PL/I compiler:
+	cd /pl1gcc/pl1/tests
+	testall.bat
+
+This will invoke your newly created PL/I compiler for a number of tests.
+If a test fails, there are two files created, one each for the stderr and
+stdout from the compiler output.
+
+*** Testing the compiler ***
+The current testsuite is mainly there to detect any regression in the
+scanning and parsing of the source code. If all goes well, you should
+see this list on your screen:
+	me@home:~/pl1gcc-0.0.x/pl1/tests> . ./testall
+	Checking OK    for  ./PL1TEST.pl1
+	Checking OK    for  ./PL1_TEST_001.pl1
+	Checking OK    for  ./PL1_TEST_ASSIGNMENT.pl1
+	Checking OK    for  ./PL1_TEST_CONDITIONS.pl1
+	Checking OK    for  ./PL1_TEST_CONSTANTS.pl1
+	Checking OK    for  ./PL1_TEST_DCL.pl1
+	Checking OK    for  ./PL1_TEST_DEFAULT.pl1
+	Checking OK    for  ./PL1_TEST_DO.pl1
+	Checking OK    for  ./PL1_TEST_IF.pl1
+	Checking OK    for  ./PL1_TEST_IO.pl1
+	Checking OK    for  ./PL1_TEST_KEYWORDS.pl1
+	Checking OK    for  ./PL1_TEST_LABEL.pl1
+	Checking OK    for  ./PL1_TEST_SCOPE.pl1
+	Checking OK    for  ./PL1_TEST_SELECT.pl1
+	Checking OK    for  ./PL1_TEST_STORAGE.pl1
+
+
+Please try pl1gcc out on some of your own samples, and let us know how it goes.
+To invoke the PL1 compiler for your won code then
+If you have any INCLUDE files then they should be in a subfolder called INCLUDE
+	or the library named accordingly by -I<foldername>/
+If you INCLUDE files have a suffix (say: INC) then
+	tell the compiler using the -isuffix<.INC> parameter
+To run by superb hello_world program called HELLO.PLI
+
+     pl11 -y -Iinclude/ -isuffix.INC HELLO.PLI  1>%%nn.stdout 2>%%n.stderr
+
+you will get an ERRORLEVEL code of zero (0) for a good compile, and one (1) for bad
+
+
+Finally, if you know of a PL/I project you would like to see supported by
+the pl1gcc effort, please do get in touch with us.
+
+http://pl1gcc.sourceforge.net
+mailto:pl1gcc-development (-at-) lists.sourceforge.net
+
+Have fun
+The GCC PL/I Team.

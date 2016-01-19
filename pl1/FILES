@@ -1,0 +1,78 @@
+This is the subdirectory for the pl/1 language frontend, which is designed to
+be the subdirectory in a gcc development tree, i.e. named ~/gcc/gcc/pl1/.
+
+Short description of files in the pl1 directory
+
+Announcement_0.0.x
+    Short announcement of the actual version of gcc PL/I
+
+COPYING
+    License conditions for copying and modifications
+
+CHANGELOG
+    Detailed changelog for the current release of pl1gcc
+
+FILES
+    Files that are in the distribution
+
+INSTALL
+INSTALL.cygwin
+INSTALL.eclipse
+    Installation help
+
+NOTES
+    Various notes and todo's
+
+README
+    Brief introduction to pl1gcc
+
+config-lang.in
+lang-specs.h
+lang.opt
+Make-lang.in
+    pl1gcc configuration. Used by gcc main build system
+
+pl1-scanner.l
+    Flex PL/I Lexical scanner
+
+pl1.texi
+    Preliminary documentation, very incomplete
+
+pl1-parser.y
+    Bison PL/I parser
+	
+pl1pp-parser.y
+    Bison PL/I preprocessor parser
+
+pl11.c
+pl1lang.h
+pl1tree.c
+pl1tree.h
+tree-convert.c
+    Files used by the gcc main compiler processing. They seems to make the
+    make system happy. Currently more or less a copy from the Treelang project.
+
+tests/
+    Directory containing various test files, to detect regression in the
+    scanning and parsing.
+
+tests/testall
+tests/testone
+    Test bash script. Invokes the pl1 compiler for all pl1 source files found
+    in the tests/ directory.
+
+
+-----------------------------------------------------------------------------
+
+The following directories are only present in the sourceforge CVS
+    pl1gcc.cvs.sourceforge.net
+
+archive/
+
+Extra/contributed
+    PL/I code that has been contributed from various kind people
+
+doc/
+doc/doc.html
+    The premilinary manual and syntax diagrams.
+	

@@ -1,0 +1,101 @@
+INSTALL.eclipse, February 2007
+
+How to use eclipse for PL/I development of the GCC front-end 
+for the PL/I programming language.
+
+GCC PL/I is released under the terms of GNU Public License; Version 2.
+
+Thank you very much for trying out the PL/I front end. Please drop a note
+to the project and let us know how it went. Any feedback is good feedback.
+
+Download eclipse from
+
+http://eclipse.org/
+
+Using eclipse as CVS front-end.
+===============================
+
+Note: You will still have to download the gcc-core-4.3-2007mmdd.tar.gz or .zip 
+====  for the source code for the gcc compiler itself.
+
+
+mini-cvs-howto
+--------------
+
+1) In eclipse create a new simple project: pl1gcc
+
+2) switch to cvs repository exploring (via menu 
+   window/switch perspective/other)
+   
+3) Setup your connection as follows:
+   connection type extssh
+      user: your sourceforge user 
+      password: secret
+      host: cvs.sourceforge.net
+      repository path: /cvsroot/pl1gcc
+      use default port
+4)
+   Due to several mishabs with the cvs commandline interface, the 
+   directory structure is not really good, but choose this:
+
+      HEAD/gcc/gcc/pl1
+
+   right-click on the directory and choose checkout as project.
+   You should now have the directories and files necessary for the 
+   pl1gcc development.
+   You can now start to make changes to the files, and also commit those
+   changes to the sourceforge cvs repository.
+
+5) the files are checked out in ~/workspace/pl1, so you have to link this 
+   to the ~/gcc-src/gcc-4.3, directory.
+      cd ~/gcc-src/gcc-4.3-2007mmdd/gcc
+      ln -s pl1 ~/workspace/pl1
+
+6) back to eclipse.
+   To help building the compiler within eclipse a number of external
+   launces have been prepared. 
+   Choose menu (Run/External Tools/External Tools ...), and you should
+   get a list of tools:
+     -  make pl1gcc
+          Make of the pl1 compiler, well actually make of 
+          the installed gcc compiler, where pl1 is just one
+          of many languages supported by gcc.
+     -  testall pl1gcc
+          Invokes the test script.
+   you might even see some more:
+    -  build pl1gcc.doc
+          Generates the html pages
+     -  build pl1gcc.ebnf2eps
+          Converts the bison grammar files into eps files
+   
+7) now build the compiler by running the make pl1gcc, you will see all
+   the output in the console view (Windows/show view/other/basic/console)
+   Note if this is the first time make is running it can take some time
+   before it has completed, because all the installed languages are 
+   compiled.
+
+8) and similar for the testall.
+
+9) set the default text-file encoding to iso-8815-1, to ensure correct 
+   encoding of for example the alternative not symbol, looks like 
+   a sharp corner '-.' 
+
+10) Optionally install the eclipse c/c++ development tools. 
+    I use mainly the c editor, but have also used the source code debugger. 
+    Works very well. Something we must develop for PL/I as well :-)
+
+
+mini-cvs vocabulary
+===================
+
+ - checkout: create a local version of the repository
+ - update: reads from the server repository and updates your local files
+ - commit: integrate changes in your local files into the server repository
+ - synchronize: compares your local files with the server repository and shows
+           differences, where you can choose which you want.
+
+
+Have fun
+
+The GCC PL/I Team.
+http://pl1gcc.sourceforge.net

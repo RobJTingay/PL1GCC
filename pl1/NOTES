@@ -1,0 +1,666 @@
+GCC PL/I
+========
+
+2006-08-10
+
+This directory is the pl1/ subdirectory, which is designed to
+be a subdirectory in the source code for gcc development tree, 
+for example in a directory named ~/gcc-src/gcc-4.2-20060715/gcc/pl1/
+
+For installation help please look in the INSTALL file.
+
+The pl1gcc project is an attempt to create a native PL/I compiler using the
+GNU Compiler Collection. The project is looking for more people to join the
+development and testing. If you have any interest, please do contact us
+and join the fun.
+
+This NOTES file serves as diary and todo list during development
+of pl1gcc. Keep in mind that there are many discussions in this file, that
+are just that, and not necessarily features that will be implemented. If you
+actually read this file, just keep in mind that it is not intended to be 
+complete nor understanderable.
+
+Look the file CHANGELOG to see actuall changes.
+
+Working on
+==========
+
+
+ 	For 0.0.13
+ 	==========
+ 	* Make lookup of filenames case insensitive (optional).
+ 	* Big things:
+ 		Create and use a CHANGELOG file instead of README
+ 		Let REAMD be onlz that a brief README
+ 	* Allow the preprocessor to have keywords as variable names, this will also get rid 
+ 	  the horrible scanner rules:
+		 REPLACE { /* REPLACE is only a token for the preprocessor */
+                   if(ppGatherTokens){ __dupyy(REPLACE);} else{ __dupyy(VARNAME); }
+                 }
+      should of course just be
+	      REPLACE         dupyy(REPLACE);
+	* write generic message interface for any kind of user oriented compiler output
+		struct compilerOutput
+		{ struct listOfOutput *head,*tail;
+		  int number of output lists;
+		}
+		struct listOfOutput
+		{ char *listName ;
+		  struct listElement *head,*tail;
+		}
+		struct listElement
+		{ struct listElement *next;
+		  YYLTYPE location ;
+		  char *msg;
+		}
+		
+		and then have
+		textOutput=newOutputList();
+		createList(textOutput,"error");
+		createList(textOutput,"warn");
+		createList(textOutput,"info");
+		createList(textOutput,"xref");
+		etc
+		addMsg("info", sprintfString("program has %i program statements",c));
+		should work.
+		
+		It could also be used to the real compiler listing, but that might be
+		a bit too akward.
+		 
+	* in pl1-parser.y, put the scope structure as part of the parserparms. this
+	  will make it possible to do a cross ref.
+	* Add location information when using addXxxxMessage.
+	* Create module for the structure for parser parameters
+		- add showWelcome, or call it sprintf_parameters
+	* Find a way to send the changelog of README, to pl1gcc mailing list.
+
+	* Check why all the headerfiles are dependant for pl1-scanner.l
+	  Only real dependencies that the flex generation it shelf needs 
+	  should be in the make file.
+	- Current dependencies:
+		pl1/lex.yy.c: pl1/pl1-scanner.l pl1/pl1.tab.h pl1/pl1pp-parser.h \
+		 pl1/libpl1/include/PPDebugLog.h \
+		 pl1/libpl1/include/TokenLocationStructs.h \
+		 pl1/libpl1/include/TokenLocation.h \
+		 pl1/libpl1/include/ScannerUtil.h \
+		 pl1/libpl1/include/TokenBasedLookahead.h \
+		 pl1/libpl1/include/SavedToken.h \
+		 pl1/libpl1/include/SavedTokenStructs.h \
+		 pl1/libpl1/include/ppVariableStructs.h 
+			flex $(FLEX_FLAG) -opl1/lex.yy.c ${srcdir}/pl1/pl1-scanner.l --header-file=pl1/yyFlex.h
+	  
+	  
+
+	* Think hard about good file layout for the structs and their
+	  functions.
+	- look at Hughs work.
+	- Idea only use struct ParserStack within the parser rules, and 
+	  have some generic functions that invokes the necessary functions
+	  for each specific type. Basically try to keep the grammar as generic
+	  as practically possible.
+
+	* parsing up entries and their parameters.
+	
+	* create initial file listing primitives
+	- sections
+		welcome
+		compiler settings
+		storagemap
+		cross reference
+		include listing
+		declare listing
+		messages
+	
+	* create external modules for
+	- scope functions
+	- label functions
+	- parser stack functions
+	- declare list functions
+
+	* First step for scopes and their parameters.
+		- define type within %union for the entry group, that matches 
+		  the possible parsed data.
+	
+	* Thinking about the declare structure, within each scope node.
+	* build a dictionary for each node, and make sure all functions, 
+	  will work on the datatype.
+	  struct symbolList
+	  { struct symbol *head,*tail;
+	    int numberofsymbols;
+	  }
+	  
+	  struct symbol
+	  {  struct symbol *next;
+	     struct symbol *defaultStmt; // if default is location dependent.
+	     location *definedAt;
+	     locationList *referencedBy;
+	     char *name;
+	     
+	     
+	     
+	     enum storageClass (STATIC,BASED,CONTROLLED,PARAMETER,DEFINED,AUTOMATIC)
+	     enum storageScope (INTERNAL,EXTERNAL)
+	     enum storageLayout ( (aligned, unaligned) , structure, array )
+	     enum storageType (Numeric, String, File, Entry, Proc ... )
+	     union
+	     {
+	     enum storageAttributeNumeric ((fixed,float) , (decimal,binary) , (real,complex) )
+	     enum storageAttributeString ((variable length, fixed length), bytesPerLength
+	     enum storageAttributeFile ( (RECORD,STREAM), (INPUT,OUTPUT,UPDATE), (sequential, keyed)...)
+	     enum storageAttributeEntry ( parameterList, options galore ...)
+	     enum storageAttributeProc  ( parameterList, options galore ...)
+	     } storageAttribute
+	     
+	     union
+	     {
+	     enum storageFeatureStructure ( level )
+	     } storageFeature
+	     
+	     enum storageInitial ...
+	  }
+	
+	* check if default statement is for the whole scope, or can be changed 
+	  as part of program flow::
+		a:proc
+		  default range(b) float;
+		  dcl b1;
+		  
+		  default range(b) fixed;
+		  dcl b2;
+		end a;
+	- depending on how the two default statements are interpretted, 
+	  b1 should be float, and b2 fixed.
+	  
+	* how should parameter be parsed
+	* in which symbol table is the declare of a procedure name or an secondary entry point stored ? 
+	  - in the parents or in its own ?
+	  = I think it makes most sense to store it in the symbol table for
+	    the parent, because the name has to be known outside its own scope.
+	  - and the parameters of the procedure ?
+	  = will be defined in the symbol table for the procedure scope itself.
+	  - and parameters for any secondary entry points ?
+	==> For the parameters create a separate list of symbols, and attach the list
+	    to the entrypoint or procedure name.
+	    
+	    
+	* step wise implementation of parsing of declare statement.
+	- procedure entry and secondary entries
+	- parameters
+	
+	* create first cut version of a listing file
+	
+	* various notes
+	- 
+	
+	--- source code ----      ----- pseudo actions -----------
+	a: proc(m,n);             { setScope(A); 
+	                            defineEntry(primary,A,currentParent);
+	                            setParameterList(A,"m,n");
+	                          }
+	
+	  dcl n fixed,            { addDCL(n,"fixed");}
+	      m float             { addDCL(m,"float");}
+	  ;
+	  
+	  a1: entry(f,g,h);       { defineEntry(secondary,A1,currentParent);
+	                            setParameterList(A1,"f,g,h");
+	                          }
+	                            
+	  dcl (f,g,h) fixed ;     { addDCL("f,g,h","fixed"); }
+	end a;                    { endScope(A); }
+	
+	call a(1,2);              { setReference(call,A);
+	                            checkParameters(A,"1,2");
+	                          }
+	                          
+	* rearrange the bison rules for dcloption, to catch some syntaxerrors 
+	  already during the parsing. For example dcl f file fixed.
+	  Something like
+	  	dcltype : dclNumeric
+		  		| dclIO
+		  		| dclChar
+		  		| dclOther
+		  		;
+		dclQualification :
+				  based
+				| static
+				| automatic
+				| controlled
+				| defined
+				| parameter
+				;
+		dclLayout:
+				  aligned
+				| unaligned
+				| connected
+				| unconnected
+				;
+				 
+	* is environmentspecparm the same as expr ?
+	
+	* the parser rule dcloptionlist is used by a number of rules
+		dclstmt -> dclterm -> dclfactor -> dcloptionlist
+		dclpgm -> entryparm -> dcloptionlist
+		dclpgm -> genericspec -> genericwhenoption -> dcloption
+		
+	* Any procedure is defined in the symbollist for the parent with
+	  an implied internal attribute.
+	* parameters at the entry level is only descriptors, and only within
+	  a scope the name of a parameter is applicable.
+	  This means we must have a way to describe the descriptor of a variable.
+	  
+	* Add %GOTO to scanner, before releasing 0.0.1x
+	* Check if it is feasible to implement
+		put skip list('hello world');
+	  or
+	    display('hello world');
+	* Use *PROCESS to switch debug options on/off within the PL/I source code.
+		*process debug(scanner,preprocessor,parser);
+
+TODO
+====
+	* define proper files for the scanner functions
+		switch input buffer ...
+		struct includeBufferListElement
+		addIncludeBuffer()
+		struct scannerBufferList
+		struct scannerBufferElement
+	* define proper files for the parser functions
+	* tag pp-tokens with a disposable indicator
+	* save whole token plus location for pp variable.
+	* create struct for sl$,sc$,so$,l$,c$,o$ and use it 
+	  instead of dreadful global variables. Maybe YYLTYPE ?
+
+	* while testing a package:
+	short_range_sensor_scan: proc;
+               if (quadrant (row_sector - one, col_sector + one) = ">!<" |
+               quadrant (row_sector, col_sector + one) = ">!<" |
+               quadrant (row_sector + one, col_sector + one) = ">!<" |
+               quadrant (row_sector + one, col_sector) = ">!<" |
+               quadrant (row_sector + one, col_sector - one) = ">!<" |
+               quadrant (row_sector, col_sector - one) = ">!<" |
+               quadrant (row_sector - one, col_sector - one) = ">!<" |
+               quadrant (row_sector - one, col_sector) = ">!<") &
+               (docked_code ^ docked)
+               then do;
+                    docked_code = docked;
+                    condition_code = "DOCKED";
+                    energy = 3000;
+                    photon_torpedo = ten;
+                    put edit ("***SHIELDS DROPPED FOR DOCKING PURPOSES***")
+                         (skip (2), a);
+                    shields = 0;
+               end;
+               else do;
+                    docked_code = not_docked;
+                    if local_klingons > 0
+                    then condition_code = "RED";
+                    else if energy < initial_energy * 0.1
+                    then condition_code = "YELLOW";
+                    else condition_code = "GREEN";
+               end;
+      gives error:
+		Reading a token: --accepting rule at line 1442 ("docked_code")
+		Next token is token VARNAME (docked_code)
+		Shifting token VARNAME, Entering state 4
+		Reducing stack by rule 564 (line 1074), VARNAME -> varname
+		Stack now 0 2 315 128 615 942 857
+		Entering state 374
+		Reading a token: --accepting rule at line 1444 (" ")
+		--accepting rule at line 997 ("^")
+		Next token is token NOT (^)
+		Reducing stack by rule 519 (line 1013), varname -> varnamequal
+		Stack now 0 2 315 128 615 942 857
+		Entering state 423
+		Reducing stack by rule 515 (line 1005), varnamequal -> varnameref
+		Stack now 0 2 315 128 615 942 857
+		Entering state 621
+		Next token is token NOT (^)
+		Reducing stack by rule 465 (line 939), varnameref -> exprbase
+		Stack now 0 2 315 128 615 942 857
+		Entering state 617
+		Reducing stack by rule 450 (line 920), exprbase -> expr
+		Stack now 0 2 315 128 615 942 857
+		Entering state 1210
+		Next token is token NOT (^)
+		syntax error
+	* Generate documentation
+	- create symbolic link to font file
+		[~/pl1/doc/figs]
+		lrwxrwxrwx  1 hsorensen users 35 Feb 21 06:13 f.afm -> /usr/share/fonts/Type1/UTRG____.afm
+	- convert yacc/bison grammar to eps file
+		~/Download/ebnf2ps-1.05/Ebnf2ps/src/Ebnf2ps -titleFont ./f -ntFont ./f -tFont ./f -yacc ~/pl1/pl1-parser.y ".*"
+>ln -s /usr/share/texmf/fonts/afm/adobe/courier/pcrr8a.afm courier.afm 
+>ln -s /usr/share/texmf/fonts/afm/adobe/times/ptmr8a.afm times.afm
+>~/Download/ebnf2ps-1.05/Ebnf2ps/src/Ebnf2ps -titleFont ./times -ntFont ./courier -tFont ./courier -yacc ~/gcc/gcc/pl1/pl1-parser.y ".*"
+
+	- convert Latex to html file:
+		latex2html -tmp ~/pl1/doc/tmp doc.tex
+	* adding declare nodes to the scopenode structure
+	    - should the strucure support inheritance of attributes,
+	      or should each variable be spelled out ?
+	    - struct declarenode
+	        name
+	        type
+	        storage class
+	        domain
+	        scale
+	        precision
+	        other ..
+	* The range mapping in the 'WHEN' matching of the generic attribute let me
+	  wondering if, variable references in general should be allowed to use 
+	  range selection ala, a(2:6), meaning dimension 2 through 6.
+
+	* Verify preconditions can be whereever a label can be:
+		label:(precond):label:statement;
+	* In the grammar verify the syntax of
+		WHEN
+		GET
+		PUT
+		WAIT
+	* Check that kw that can be followed by a pl1stmt, also can be used
+	  as a label.
+	* Handle when varnamequal contains '(' ')', currently only the name is
+	  stored in the return stack.
+	* Add test cases where the different compiler options also gets tested
+	  For example, it has to be checked if the flex/bison debuging options
+	  affects the results of the generated code.
+	* Care most be taken when calling yyerror, because yyerror relies 
+	  on yylval.s, and token locations. This basically means that currently
+	  all calls to yyerror from within pl1-scanner.l are bogus.
+	* Find a way to bulk test all the testcases in MustFail.
+	  Maybe use some special markup within the testcases:
+	  	/* @@ TEST BEGIN @@ */
+		...
+		/* @@ TEST END   @@ */
+	* Add 'must-fail' test cases
+	  The parser recognises quite a bit more than just the PL/I language,
+	  for example, currently you can wrongly do:
+	  	get(a,*,n);
+	  meaning the get statement, as opposed to:
+	  	get(a,*,n)=0;
+	  the assignment statement.
+	* Create a series of tests that must fail, and change the testall script
+	  to accept errors from these files.
+	  Samples:
+		include file not found
+		declare semantics like dcl a fixed fixed;
+		scope that does not have a matching end
+		Check when preconditions are allowed, eg the following is maybe
+		invalid:
+			IF (t) THEN (SIZE) : a=b+c ; (SUBRG) : ELSE x(y)=0 ;
+	* Also must fail GET/PUT with multiple dataoptions:
+		put list('a=',a) edit(a)(a) data(a); /* This is not PL/I */
+	* Find a way to create a hash value for variable qualifiers and
+	  references <length><mhash>, where mhash is the famous matrix
+	  hash combined with some carefully selected primes. It seems that
+	  the bison rule, varnameref, could carry the hash information as
+	  the stack value.
+	  Note, check the case status of the returned strings, the scanner
+	  is build to ignore case, but the actual case of the text is as
+	  written in the input file.
+
+	* Add pl1gcc.FAQ file
+	* Add AUTHORS file
+	* Add CREDITS file:
+		- credits to the treelang frontend
+		- credits to gfortran
+		- credits to founder of FSF and GPL
+		  for making this possible
+	* Implement %include syntax is "%include member" or "%include <ddname>(member)"
+	  but use an environment variable as ddname, eg. "%include mydirlist(amember)"
+	* Remove upper limit of number of nested includes,  but check for nested
+	  includes, and if the preceding list of includes also match, then
+	  activate include loop check.
+	* Instead of keep freeing and reallocating the lex include stack, never
+	  free before the the scanning is done. Just use a flag, and forward
+	  pointer to control whether or not the stg can be reused.
+	* Check if the preconditions and labels always can prefix a pl1stmt,
+	  as in:
+	  - if a=1 then b=0; l:else b=1; goto l;
+	  - if a=1 then b=0; else l:b=1; goto l;
+	  - if a=1 then l:b=0; else b=1; goto l;
+	* Produce warning msg when detecting multiple closure of scope.
+	* Warning msg if input contains \t ?
+	* Find out if gcc has an error message numbering facilities. Important
+	  because pl1 has a large German, and Scandinavian presence.
+	  Look in directory ~/gcc/gcc/po. Here are quite a few translations.
+	* Translate Error Messages
+	* The translation process of messages are described in
+	  ~/gcc/gcc/ABOUT-GCC-NLS: (edited):
+	  Instead, the diagnostic printing routines automatically translate
+	  their arguments. For example, GCC source code should contain calls
+	  like `error ("unterminated comment")', as it is the `error' function's
+	  responsibility to translate the message before the user sees it.
+
+	  By convention, any function parameter in the GCC sources whose name
+	  ends in `msgid' is expected to be a message requiring translation.
+	  For example, the `error' function's first parameter is named `msgid'.
+	  GCC's exgettext script uses this convention to determine which
+	  function parameter strings need to be translated.  The exgettext
+	  script also assumes that any occurrence of `%eMSGID}' on a source
+	  line, where MSGID does not contain `%' or `}', corresponds to a
+	  message MSGID that requires translation; this is needed to identify
+	  diagnostics in GCC spec strings.
+	  After having built and installed these gettext tools, you have to
+	  configure GCC with --enable-maintainer-mode to get the master catalog
+	  rebuilt.
+	- Note, the toolchain has to be updated before configure with maint-mode
+
+	* The script ~/gcc/gcc/po/exgettext, describes how messages are
+	  extracted:
+	# Locate files to scan, and generate the list.  All .c, .h, and .def files
+	# in $srcdir are examined, likewise $srcdir/config and $srcdir/config/*
+	# (directories).  Also, all subdirectories of $srcdir that contain a
+	# config-lang.in.  Exclusions come from $srcdir/po/EXCLUDE.
+	  The errormessages are extracted by the xgettext program.
+
+
+	* Sourcforge statistics:
+				 page views	   downloads
+		29 May	 2006: ?????		5804 (*) page view stats not available
+		15 Jan	 2005: 15117  		1895  	
+		04 Jan   2005: 14840  		1858  	
+		31 July  2004:	8948		 933
+		12 July  2004:	8226		 832
+		05 July  2004:	7820		 779
+		12 June  2004:	6929		 658
+		30 May   2004:	6463		 596
+		19 May   2004:	6015		 531
+		14 May   2004:	5712		 500
+		09 May   2004:	5510		 480
+		24 April 2004:	4945		 421
+		20 April 2004:	4768		 411
+		16 April 2004:	4637		 389
+		09 April 2004:	4404		 371
+		06 April 2004:	4305		 365
+		30 March 2004:  4050		 321
+		25 March 2004:  3852		 306
+
+
+MILESTONE
+=========
+	* 0.0.x: Internal structure for declare.
+	* 0.0.y: Interface for Eclipse Editor.
+	* 0.0.z: More preprocessor, using ppExpr and ppVariable
+	* 0.0.12: Reentrant scanner and parser, and first compiler messages
+
+NOTES
+=====
+	After a painful introduction to the GCC buildsystem, I decided to switch
+	to the TREELANG	frontend just to get the compiler to build. A subgoal is
+	still to produce a compiler that is independent of the c-*.c files.
+
+	* Update pl1.texi, describe the internal datatypes
+	  - Labels
+		struct labelnode { } ;
+		struct labellist { } ;
+		struct labellist *newLabellist(char *);
+		struct labellist *addLabel(struct labellist *, char *);
+		char *allocFullLabelName(struct labellist *l);
+	  - Scopes
+		struct scopenode { } ;
+		struct scopenode *setScope(struct scopenode *c,struct labellist *l,int t);
+		struct scopenode *newScope(struct scopenode *c,struct labellist *l,int t);
+		struct scopenode *endScope(struct scopenode *c);
+		void   showScopeTree(struct scopenode *sn);
+		void   showScopeTreeWhole(char *,struct scopenode *sn);
+	  - Lookup Functions
+		int checkNameInLabellist(struct labellist *l, char *n);
+		struct scopenode *lookUpMatchingNode(struct scopenode *s, char *n);
+	  - Include files
+		struct lex_include_stack { } ;
+		struct fileList { } ;
+		void setupenvstring(void);
+		void appendfilelist(char *path, char *name);
+		extern struct fileList *fileHead,*fileTail;
+		char defaultpaths[]="./";
+		envstring=getenv("PL1SYSLIB");
+		int include_stack_ptr 
+	  - Location tracking
+		#define YYLLOC_DEFAULT
+		typedef struct pl1ltype { } ;
+		#define SET_yylloc
+		#define SHOW_yylloc
+		int l$=1,c$=0,sl$=-1,sc$=-1;
+	  - Token based lookahead
+		int lookahead=0;
+		int savedcount=0;
+		struct savedtokenlist { } ;
+		struct savedtokenlist *savedhead,*savedcurrent,*savedtemp;
+		struct savedtokenlist *savetoken(int,YYLTYPE *,char *);
+		int checkstmt(struct savedtokenlist *);
+	  - Preprocessor
+		#define PP_FIXED 0
+		#define PP_CHARACTER 1
+		int setPPvarname(char *text, int len);
+		int setPPdeclare(char *text, int len);
+		int setPPassign (char *text, int len);
+		int ppAddVarname(char * name, int type);
+		int ppSetVarnameValue(char * name, char * value);
+		char * ppGetVarnameValue(char * name);
+		struct ppVarname * ppFindVarname(char * name);
+		int ppShowList(void);
+		char *ppWorkName,*ppWorkValue;
+		int ppWorkType;
+		int ppTempInt; /* used by dupyy macro */
+		struct ppVarname {  }
+		struct ppVarname *ppHead=NULL,*ppTail=NULL,*ppTemp=NULL;
+	  - Diagnostics
+		yyprint
+		yyerror
+		yydebug
+		yy_flex_debug
+
+	* PL/I scope definitions
+	  - Runtime scope
+	  - Main program/entry scope
+	  - Procedure/entry scopes
+	  - Begin/end scopes
+	  - Do/end scopes
+	  - Condition scopes
+	  - Task scope
+	* PL/I block activation
+	  - program start
+	  - goto
+	  - call internal
+	  - call external
+	  - fetch
+	  - signal
+	  - condition
+		- system
+		- file
+		- program
+	  - task
+	  - do
+	  - begin
+	* PL/I block deactivation
+	  - program end
+	  - return
+	  - end
+	  - leave
+	  - goto
+	* Variable definitions
+	  Storage classes:
+	  - Static
+		- Stored with initial values in the program binary
+	  - Controlled
+		- Stack of persistent structures
+		- Dynamic allocation of any variable at runtime
+	  - Defined
+		- (recheck) structure overlay, defined at compile time, (dss alias?)
+	  - Based
+		- allocated structure, must also be freed by pgm
+		- structure overlay using runtime adresses
+	  - Automatic
+		- Allocated upon activation of the defining block
+		- deallocated upon de-activation of the block
+	  - Parameter
+		- Allocated outside the scope they are used
+		- Traditionally PL/I uses call by name conventions
+	  Storage types
+	  - Numeric
+		binary or decimal
+		fixed or float
+		real or complex
+	  - String
+	  - Entry
+		recursive
+		reentrant
+		reorder/order
+	  - Label
+		goto
+		call
+		loop
+	  - File
+		record
+		stream
+		print
+	  - Pointer
+	  - Picture
+	  - Bit
+	  - Condition
+	  - Event
+	  - Format
+	  - Generic
+	  - Area
+	  - Offset
+	  Storage Scope
+	  - Internal
+	  - External, fetchable
+	  - Builtin
+	  Storage misc
+	  - Implicit / Explicit declare
+	  - Constant
+	  - Aligned/Unaligned
+	  - Initial
+	  - Structures
+	  - Arrays
+	  - Connected
+	  - Self-defined (REFER)
+	  - Pseudo variables
+	  - Default, System
+Diary
+=====
+August 2006
+	* 0.0.12: Reentrant scanner and parser, and first compiler messages
+May 2006
+	* 0.0.11: Preprocessor infrastructure using flex and bison.
+March 2005
+	* 0.0.10: Multics Edition
+February 2005
+	* 0.0.9: Integration of Multics, Enterprise Edition and Visual Age syntax.
+July 2004
+	* 0.0.8: Reduce number of conflicts in grammar.
+May 2004
+	* 0.0.7: PL/I Keywords as variable names
+	* 0.0.6: Track token locations.
+March 2004
+	* 0.0.5: Recognition of multiple scope closure with one END
+	* 0.0.4: Recognition of scope bounderies with matching ENDs
+January 2004
+	* 0.0.3: Implement two pass scanning/parsing
+December 2003
+	* 0.0.2: Using standard gcc build system to call pl1 scanner and parser from version 0.0.1
+May 2002
+	* 0.0.1: Standalone PL/I scanner and parser.

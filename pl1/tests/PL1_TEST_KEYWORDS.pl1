@@ -1,0 +1,913 @@
+pl1_test_keywords: proc options(main);
+/* test of KW as variables */
+/*  Copyright 2002, 2003-2004 Henrik Sorensen
+
+    This file is part of GCC front-end for the PL/I programming language, GCC PL/I.
+
+    GCC PL/I is free software; you can redistribute it and/or modify it
+    under the terms of the GNU General Public License as published by the
+    Free Software Foundation; version 2.
+*/
+
+kw_as_vars: proc;
+A			= A;
+abnormal	= abnormal;
+ALIAS		= ALIAS;
+ALIGNED			= ALIGNED;
+ALLOCATE		= ALLOC;
+ANYCOND,ANYCONDITION = ANYcondition;
+assignable,asgn = asgn;
+ATTENTION		= ATTN;
+ATTACH			= ATTACH ;
+AUTO			= AUTO;
+AUTOMATIC		= AUTOMATIC;
+B			= B;
+B1			= B1;
+B2			= B2;
+B3			= B3;
+B4			= B4;
+BACKWARDS		= BACKWARDS;
+BASED			= BASED;
+BEGIN			= BEGIN;
+BIGENDIAN		= BIGENdian;
+BIN			= BIN;
+BINARY			= BIN;
+BIT			= BIT;
+BUFFERED,BUF		= BUFFERED;
+BUILTIN			= BUILTIN;
+BY	 		= BY;
+BYADDR		= BYADDR;
+BYVALUE		= BYVALUE;
+BX			= BX;
+C			= C;
+CALL			= CALL;
+CDECL			= CDECL;
+CELL			= CELL;
+CHAR			= CHAR;
+CHARACTER		= CHAR;
+CLOSE			= CLOSE;
+COLUMN 			= COLUMN;
+COMPLEX			= COMPLEX;
+CONNECTED,conn		= CONNECTED;
+CONDITION		= CONDITION;
+CONSTANT		= CONST;
+CONTROLLED,CTL		= CONTROLLED;
+COPY	 		= COPY;
+DATA	 		= DATA;
+DATE			= DATE;
+/* DCL,DECLARE		= DCL; */
+DEC			= DEC;
+DECIMAL			= DEC;
+DEFAULT			= DEFAULT;
+DEFINE			= DEFINE;
+DEFINED			= DEF;
+DELAY			= DELAY;
+DELETE			= DELETE;
+DESCRIPTORS		= DESCRIPTORS;
+DETACH			= DETACH;
+DIMENSION		= DIM;
+DIRECT			= DIRECT;
+DISPLAY			= DISPLAY;
+DO	 		= DO;
+DOWNTHRU	= downthru;
+E			= E;
+EDIT	 		= EDIT;
+ELSE			= ELSE;
+END			= END;
+ENTRY			= ENTRY;
+ENV			= ENVIRONMENT;
+ENVIRONMENT		= ENVIRONMENT;
+ERROR			= ERROR;
+EVENT			= EVENT;
+EXCLUSIVE,EXCL		= EXCLUSIVE;
+EXPORTS			= EXPORTS;
+EXIT			= EXIT;
+EXTERNAL,EXT		= EXTERNAL;
+F			= F;
+FB			= FB;
+FS			= FS;
+FBS			= FBS;
+FETCH			= FETCH ;
+FILE			= FILE;
+FINISH			= FINISH;
+FIXED			= FIXED;
+FLOAT			= FLOAT;
+FLUSH			= FLUSH ;
+FREE			= FREE;
+FOREVER			= FOREVER;
+FORMAT			= FORMAT;
+FROM			= FROM;
+G			= G;
+GENERIC			= GENERIC;
+GET	 		= GET;
+GO			= GO;
+GOTO			= GOTO;
+GRAPHIC			= GRAPHIC;
+GX			= GX;
+handle		= handle;
+HEXADEC		= HEXADEC;
+I			= I;
+IEEE		= IEEE;
+IF(1)			= IFC;
+IF			= IF;
+IGNORE			= IGNORE;
+IMPORTED		= IMPORTED;
+IN			= IN;
+INLINE		= INLINE;
+INPUT			= INPUT;
+INTERNAL		= INTERNAL;
+INVALIDOP		= INVALIDOP;
+INIT			= INIT;
+INITIAL			= INIT;
+INTO			= INTO;
+ITERATE			= ITERATE(1);
+LABEL			= LABEL;
+LEAVE			= LEAVE;
+LIKE			= LIKE;
+LIMITED			= LIMITED;
+LINE	 		= LINE;
+LINESIZE 		= LINESIZE;
+LIST	 		= LIST;
+LITTLEENDIAN	= LITTLEENDIAN;
+LOCATE			= LOCATE;
+LOCAL			= LOCAL;
+LOOP			= LOOP;
+KEY			= KEY;
+KEYED			= KEYED;
+KEYTO			= KEYTO;
+KEYFROM			= KEYFROM;
+M				= M;
+MAIN			= MAIN;
+NAME			= NAME;
+NONASGN,NONASSIGNABLE= nonassignable;
+nonconnected,nonconn = nonconn;
+noinit			= noinit;
+noinline		= noInline;
+NOLOCK			= NOLOCK;
+NOINVALIDOP		= NOINVALIDOP;
+NONE			= NONE;
+NONVARYING		= NONVARYING;
+NON_QUICK		= NON_QUICK;
+NO_QUICK_BLOCKS = NO_QUICK_BLOCKS;
+normal			= normal;
+offset			= offset ;
+ON			= ON;
+OPEN			= OPEN;
+OPTIONAL		= OPTIONAL;
+ORDINAL			= ORDINAL;
+OTHER			= OTHERWISE;
+OTHERWISE		= OTHERWISE;
+OUTPUT			= OUTPUT;
+P			= P;
+PACKAGE		= PACKAGE;
+PACKED		= PACKED;
+PACKED_DECIMAL = PACKED_DECIMAL;
+PAGE	 		= PAGE;
+PAGESIZE 		= PAGESIZE;
+parm,PARAMETER	= PARAM;
+PIC			= PICTURE;
+PICTURE			= PICTURE;
+POINTER			= POINTER;
+POS			= POSITION;
+PREC,PRECISION		= PRECISION;
+PRINT			= PRINT;
+PRIORITY		= PRIORITY;
+PROC			= PROC;
+PROCEDURE		= PROC;
+PUT	 		= PUT;
+R			= R;
+RANGE			= RANGE;
+READ			= READ;
+REAL			= REAL;
+RECORD			= RECORD;
+REFER			= REFER;
+RELEASE			= RELEASE ;
+rename			= rename;
+RESERVES		= RESERVES ;
+RETURN			= RETURN;
+REPEAT	 		= REPEAT;
+REPLY			= REPLY;
+reread			= reread ;
+reserved		= reserved ;
+resignal		= resignal ;
+REVERT			= REVERT;
+REWRITE			= REWRITE;
+SELECT			= SELECT;
+SET			= SET;
+SEQUENTIAL,SEQL		= SEQUENTIAL;
+SKIP	 		= SKIP;
+SIGNED			= SIGNED;
+SNAP			= SNAP;
+STATIC			= STATIC;
+STORAGE			= STORAGE;
+STOP			= STOP;
+STREAM			= STREAM;
+STRING	 		= STRING;
+stringvalue		= stringvalue;
+STRUCTURE		= STRUCTURE;
+SUPPORT			= SUPPORT;
+SYSTEM			= SYSTEM;
+TASK			= TASK;
+THEN			= THEN;
+THREAD			= THREAD ;
+TITLE			= TITLE;
+TO	 		= TO;
+TRANSIENT		= TRANSIENT;
+TSTACK			= TSTACK;
+TYPE			= TYPE;
+UNALIGNED		= UNALIGNED;
+UNBUFFERED,UNBUF	= UNBUFFERED;
+UNCONNECTED		= UNCONNECTED;
+UNION			= UNION;
+UNLOCK			= UNLOCK;
+UNSIGNED,uns		= UNSIGNED;
+UNTIL	 		= UNTIL;
+UPDATE			= UPDATE;
+upthru			= upthru;
+WAIT			= WAIT;
+WHEN			= WHEN;
+WHILE	 		= WHILE;
+WIDECHAR,WCHAR  = WCHAR;
+WRITE			= WRITE;
+VALIDATE		= VALIDATE;
+VALUE			= VALUE;
+VAR			= VARIABLE;
+VARIABLE		= VARIABLE;
+VARYING			= VARYING;
+VARZ,VARYINGZ = VARYINGZ;
+V			= V;
+VB			= VB;
+VS			= VS;
+VBS			= VBS;
+WX			= WX;
+X			= X;
+XN			= XN;
+XU			= XU;
+
+/* preprocessor keywords */
+ACTIVATE=ACT;
+DEACTIVATE=DEACT;
+INCLUDE=include;
+NOPRINT=NOPRINT;
+NOTE=NOTE;
+REPLACE=replace;
+
+PROC=0;
+CHARGRAPHIC=0;
+IRREDUCIBLE=0;
+NOCHARGRAPHIC=0;
+OPTIONS=0;
+ORDER=0;
+RECURSIVE=0;
+REDUCIBLE=0;
+REORDER=0;
+RETURNS=0;
+MAIN=0;
+NOEXECOPS=0;
+REENTRANT=0;
+
+
+AREA=0;
+ATTENTION=0;
+CONDITION=0;
+CHECK=0;
+CONVERSION=0;
+ENDFILE=0;
+ENDPAGE=0;
+ERROR=0;
+FINISH=0;
+FIXEDOVERFLOW=0;
+KEY=0;
+NAME=0;
+OVERFLOW=0;
+PENDING=0;
+RECORD=0;
+SIZE=0;
+STRINGRANGE=0;
+STRINGSIZE=0;
+SUBSCRIPTRANGE=0;
+TRANSMIT=0;
+UNDEFINEDFILE=0;
+UNDERFLOW=0;
+ZERODIVIDE=0;
+
+ASM=0;
+ASSEMBLER=0;
+COBOL=0;
+FORTRAN=0;
+INTER=0;
+RETCODE=0;
+
+ADDBUFF
+, ASCII
+
+, BKWD
+, BLKSIZE
+, BUFFERS
+, BUFFOFF
+, BUFND
+, BUFNI
+, BUFSP
+
+, CONSECUTIVE
+, CTLASA
+, CTL360
+
+, D
+, DB
+
+, GENKEY
+, GRAPHIC
+
+, INDEXAREA
+, INDEXED
+
+, KEYLENGTH
+, KEYLOC
+
+, NCP
+, NOWRITE
+
+, RECSIZE
+, REGIONAL
+, REUSE
+
+, PASSWORD
+
+, SCALARVARYING
+, SIS
+
+, TOTAL
+, TP
+, TRKOFL
+
+, U
+
+, VSAM =a;
+ 
+ 
+
+
+NOCHECK			= NOCHECK;
+NOCONVERSION		= NOCONVERSION;
+NOFIXEDOVERFLOW		= NOFIXEDOVERFLOW;
+NOLOCK			= NOLOCK;
+NOOVERFLOW		= NOOVERFLOW;
+NOSIZE			= NOSIZE;
+NOSUBSCRIPTRANGE	= NOSUBSCRIPTRANGE;
+NOSTRINGRANGE		= NOSTRINGRANGE;
+NOSTRINGSIZE		= NOSTRINGSIZE;
+NOUNDERFLOW		= NOUNDERFLOW;
+NOZERODIVIDE		= NOZERODIVIDE;
+end kw_as_vars;
+
+kw_as_arrays: proc;
+NOCHECK			(1)= NOCHECK;
+NOCONVERSION		(1)= NOCONVERSION;
+NOFIXEDOVERFLOW		(1)= NOFIXEDOVERFLOW;
+NOLOCK			(1)= NOLOCK;
+NOOVERFLOW		(1)= NOOVERFLOW;
+NOSIZE			(1)= NOSIZE;
+NOSUBSCRIPTRANGE	(1)= NOSUBSCRIPTRANGE;
+NOSTRINGRANGE		(1)= NOSTRINGRANGE;
+NOSTRINGSIZE		(1)= NOSTRINGSIZE;
+NOUNDERFLOW		(1)= NOUNDERFLOW;
+NOZERODIVIDE		(1)= NOZERODIVIDE;
+
+
+
+AREA(1)=0;
+ATTENTION(1)=0;
+CONDITION(1)=0;
+CHECK(1)=0;
+CONVERSION(1)=0;
+ENDFILE(1)=0;
+ENDPAGE(1)=0;
+ERROR(1)=0;
+FINISH(1)=0;
+FIXEDOVERFLOW(1)=0;
+KEY(1)=0;
+NAME(1)=0;
+OVERFLOW(1)=0;
+PENDING(1)=0;
+RECORD(1)=0;
+SIZE(1)=0;
+STRINGRANGE(1)=0;
+STRINGSIZE(1)=0;
+SUBSCRIPTRANGE(1)=0;
+TRANSMIT(1)=0;
+UNDEFINEDFILE(1)=0;
+UNDERFLOW(1)=0;
+ZERODIVIDE(1)=0;
+
+
+
+PROCEDURE(1)=0;
+CHARGRAPHIC(1)=0;
+IRREDUCIBLE(1)=0;
+NOCHARGRAPHIC(1)=0;
+OPTIONS(1)=0;
+ORDER(1)=0;
+RECURSIVE(1)=0;
+REDUCIBLE(1)=0;
+REORDER(1)=0;
+RETURNS(1)=0;
+MAIN(1)=0;
+NOEXECOPS(1)=0;
+REENTRANT(1)=0;
+
+
+
+
+
+
+/* kw as subscripted variables: */
+A(1)			= A;
+abnormal(1)		= abnormal(1);
+ALIAS(1)		= ALIAS;
+ALIGNED(1)		= ALIGNED;
+ALLOCATE(1)		= ALLOC(1);
+ANYCOND(1)		= ANYCONDITION(1);
+asgn(1),assignable(1) = assignable(1);
+ATTENTION(1)		= ATTENTION;
+ATTACH(1)=ATTACH;
+AUTO(1)			= AUTO;
+AUTOMATIC(1)		= AUTOMATIC;
+B(1)			= B;
+B1(1)			= B1;
+B2(1)			= B2;
+B3(1)			= B3;
+B4(1)			= B4;
+BACKWARDS(1)		= BACKWARDS;
+BASED(1)		= BASED;
+BEGIN(1)		= BEGIN;
+BIGENDIAN(1)	= BIGENDIAN;
+BIN(1)			= BIN;
+BINARY(1)		= BIN;
+BIT(1)			= BIT;
+BUFFERED(1),BUF(1)	= BUFFERED;
+BUILTIN(1)		= BUILTIN;
+BY(1)	 		= BY;
+BYADDR(1)		= BYADDR;
+BYVALUE(1)		= BYVALUE;
+BX(1)			= BX;
+C(1)			= C;
+CALL(1)			= CALL;
+CELL(1)			= CELL;
+CDECL(1)		= CDECL;
+CHAR(1)			= CHAR;
+CHARACTER(1)		= CHAR;
+CLOSE(1)		= CLOSE;
+COLUMN(1) 		= COLUMN;
+COMPLEX(1)		= COMPLEX;
+CONNECTED(1),conn(1)		= CONNECTED;
+CONDITION(1)		= CONDITION;
+CONSTANT(1)		= CONST(*);
+CONTROLLED(1),CTL(1)	= CONTROLLED;
+COPY(1)	 		= COPY;
+DATA(1)	 		= DATA;
+DATE(1)			= DATE;
+DCL(1),DECLARE(1)	= DCL;
+DEC(1)			= DEC;
+DECIMAL(1)		= DEC;
+DEFAULT(1)		= DEFAULT;
+DEFINE(1)		= DEFINE;
+DEFINED(1)		= DEFINED;
+DELAY(1)		= DELAY;
+DELETE(1)		= DELETE;
+DESCRIPTORS(1)		= DESCRIPTORS;
+DETACH(1) = DETACH ;
+DIM(1)	= DIMENSION;
+DIRECT(1)		= DIRECT;
+DISPLAY(1)		= DISPLAY;
+DO(1)	 		= DO;
+DOWNTHRU(1)		= downthru;
+E(1)			= E;
+EDIT(1)	 		= EDIT;
+ELSE(1)			= ELSE;
+END(1)			= END;
+ENTRY(1)		= ENTRY;
+ENV(1)			= ENVIRONMENT;
+ENVIRONMENT(1)		= ENVIRONMENT;
+ERROR(1)		= ERROR;
+EVENT(1)		= EVENT;
+EXCLUSIVE(1),EXCL(1)	= EXCLUSIVE;
+EXIT(1)			= EXIT;
+EXPORTS(1)		= EXPORTS;
+EXTERNAL(1),EXT(1)	= EXTERNAL;
+F(1)			= F;
+FB(1)			= FB;
+FS(1)			= FS;
+FBS(1)			= FBS;
+FETCH(1)		= FETCH;
+FILE(1)			= FILE;
+FINISH(1)		= FINISH;
+FIXED(1)		= FIXED;
+FLOAT(1)		= FLOAT;
+FLUSH(1)		= FLUSH ;
+FREE(1)			= FREE;
+FOREVER(1)		= FOREVER;
+FORMAT(1)	 	= FORMAT;
+FROM(1)			= FROM;
+G(1)			= G;
+GENERIC(1)		= GENERIC;
+GET(1)	 		= GET;
+GO(1)			= GO;
+GOTO(1)			= GOTO;
+GRAPHIC(1)		= GRAPHIC;
+GX(1)			= GX;
+handle(1)		= handle(1);
+HEXadec(1)		= hexadec(1);
+I(1)			= I;
+IEEE(1)			= IEEE;
+IF(1)			= IFC;
+IF(1)			= IF;
+IGNORE(1)		= IGNORE;
+IMPORTED(1)		= IMPORTED;
+IN(1)			= IN;
+inline(1)		= Inline(1);
+INPUT(1)		= INPUT;
+INTERNAL(1)		= INTERNAL;
+INIT(1)			= INIT;
+INITIAL(1)		= INIT;
+INTO(1)			= INTO;
+INVALIDOP(1)	= invalIDoP;
+ITERATE(1)		= ITERATE;
+LABEL(1)		= LABEL;
+LEAVE(1)		= LEAVE;
+LIKE(1)			= LIKE;
+LIMITED(1)		= LIMITED;
+LINE(1)	 		= LINE;
+LINESIZE(1) 		= LINESIZE;
+LIST(1)	 		= LIST;
+LITTLEENDIAN(1) = LITTLEENDIAN ;
+LOCATE(1)		= LOCATE;
+LOCAL(1)		= LOCAL;
+LOOP(1)			= LOOP;
+KEY(1)			= KEY;
+KEYED(1)		= KEYED;
+KEYTO(1)		= KEYTO;
+KEYFROM(1)		= KEYFROM;
+M(1)			= M;
+MAIN(1)			= MAIN;
+NAME(1)			= NAME;
+NOLOCK(1)		= NOLOCK;
+NOINVALIDOP(1)	= NOINVALIDOP;
+noinit(1)		= noinit;
+noinline(1)		= noInline;
+normal(1)		= NORMAL;
+nasgn(1),NONASSIGNABLE(1)= NONASSIGNABLE(1);
+nonconn(1),nonconnected(1)=nonconnected;
+nonvar(1),nonvarying(1)=nonvarying;
+none(1)			= none;
+non_quick(1)	= non_quick;
+NO_QUICK_BLOCKS(1) = NO_QUICK_BLOCKS;
+offset(1)		= offset ;
+ON(1)			= ON;
+OPEN(1)			= OPEN;
+OPTIONAL(1)		= oPTIONAL;
+ORDINAL(1)		= ORDINAL;
+OTHER(1)		= OTHERWISE;
+OTHERWISE(1)		= OTHERWISE;
+OUTPUT(1)		= OUTPUT;
+P(1)			= P;
+PACKAGE(1)		= PACKAGE;
+PACKED(1)		= PACKED;
+PACKED_DECIMAL(1) = PACKED_DECIMAL;
+PAGE(1)	 		= PAGE;
+PAGESIZE(1) 		= PAGESIZE;
+PARAMETER(1),parm(1)	= PARM(1);
+PARAMETER(1),parm(1)	= PARAMETER+parm;
+PIC(1)			= PICTURE;
+PICTURE(1)		= PICTURE;
+POINTER(1,1)		= POINTER;
+POSITION(1)		= POSITION;
+PRECISION(1),PREC(1)	= PREC;
+PRINT(1)		= PRINT;
+PRIORITY(1)		= PRIORITY;
+PROC(1)			= PROC;
+PROCEDURE(1)		= PROC;
+PUT(1)	 		= PUT;
+R(1)			= R;
+RANGE(1)		= RANGE;
+READ(1)			= READ;
+REAL(1)			= REAL;
+RECORD(1)		= RECORD;
+REFER(1)		= REFER;
+RELEASE(1)		= RELEASE ;
+rename(1)		= rename;
+RESERVES(1)		= RESERVES ;
+RESERVED(1)		= RESERVED;
+RETURN(1)		= RETURN;
+REPEAT(1)	 	= REPEAT;
+REPLY(1)		= REPLY;
+reread(1)		= reread ;
+resignal(1)		= resignal;
+REVERT(1)		= REVERT;
+REWRITE(1)		= REWRITE;
+SELECT(1)		= SELECT;
+SET(1)			= SET;
+SEQUENTIAL(1),SEQL(1)	= SEQUENTIAL;
+SIGNED(21)			= SIGNED;
+SKIP(1)	 		= SKIP;
+SNAP(1)			= SNAP;
+STATIC(1)		= STATIC;
+STOP(1)			= STOP;
+STORAGE(1)		= STORAGE;
+STREAM(1)		= STREAM;
+STRING(1)	 	= STRING;
+stringvalue(1)	= stringvalue;
+STRUCTURE(1)	= STRUCTURE;
+SUPPORT(1)		= SUPPORT ;
+SYSTEM(1)		= SYSTEM;
+TASK(1)			= TASK;
+THEN(1)			= THEN;
+THREAD(1)		= THREAD;
+TITLE(1)		= TITLE;
+TO(1)	 		= TO;
+TRANSIENT(1)		= TRANSIENT;
+TSTACK(1)		= 0;
+TYPE(1)			= TYPE;
+UNALIGNED(1)		= UNALIGNED;
+UNBUFFERED(1),UNBUF(1)	= UNBUFFERED;
+UNCONNECTED(1)		= UNCONNECTED;
+UNION(1)			= UNION;
+UNLOCK(1)		= UNLOCK;
+UNSIGNED(1),uns(1)		= UNSIGNED;
+UNTIL(1)	 	= UNTIL;
+UPDATE(1)		= UPDATE;
+UPTHRU(1)		= upthru;
+WAIT(1)			= WAIT;
+WHEN(1)			= WHEN;
+WHILE(1)	 	= WHILE;
+WIDECHAR(1),WCHAR(1)		= WIDECHAR;
+WRITE(1)		= WRITE;
+VALIDATE(1)		= VALIDATE(1);
+VALUE(1)		= VALUE(1);
+VAR(1)			= VARIABLE;
+VARIABLE(1)		= VARIABLE;
+VARYING(1)		= VARYING;
+VARZ(1),VARYINGZ(1)=VARYINGZ;
+V(1)			= V;
+VB(1)			= VB;
+VS(1)			= VS;
+VBS(1)			= VBS;
+WX(1)			= WX;
+X(1)			= X;
+XN(1)			= XN;
+XU(1)			= XU;
+
+
+/* preprocessor keywords */
+ACTIVATE(1)=ACT;
+DEACTIVATE(2)=DEACT;
+INCLUDE(1)=include;
+NOPRINT(0)=NOPRINT;
+NOTE(11)=NOTE;
+REPLACE(1)=replace;
+
+
+NODESCRIPTOR,
+DESCRIPTOR,
+FROMALIEN,
+FORTRAN,
+FETCHABLE,
+LINKAGE,
+CDECL,
+OPTLINK,
+STDCALL,
+SYSTEM,
+WINMAIN =0;
+
+NODESCRIPTOR(1),
+DESCRIPTOR(1),
+FROMALIEN(1),
+FORTRAN(1),
+FETCHABLE(1),
+LINKAGE(1),
+CDECL(1),
+OPTLINK(1),
+STDCALL(1),
+SYSTEM(1),
+WINMAIN(1) =0;
+
+
+ASM(1)=0;
+ASSEMBLER(1)=0;
+COBOL(1)=0;
+FORTRAN(1)=0;
+INTER(1)=0;
+RETCODE(1)=0;
+end kw_as_arrays;
+
+/* new tests for kw as variables */
+
+DISPLAy(1,a)=0;
+IF(A)=0;
+IF(A)=0 THEN b=0;
+
+IF(C=1)=0;
+IF(C=1)=0 THEN D=0;
+IF(C=1)<0 THEN D=0;
+IF(C=1)<=0 THEN D=0;
+IF(C=1)>0 THEN D=0;
+IF(C=1)>=0 THEN D=0;
+
+IF(D,3)=5;
+IF a THEN IF B THEN IF=0;
+IF a THEN IF( B ) THEN IF=0; else if(a)=0;
+IF a THEN IF( B ) THEN IF=0; else if(a,6)=0;
+IF a THEN IF( B ) THEN IF=IF(0); else if(a,6)=0;
+
+
+IF (a&B)='00001'BX THEN b=0;
+IF (a&B)&'00001'BX THEN b=0;
+IF (a&B)!'00001'BX THEN b=0;
+IF ^(a&B)!'00001'BX THEN b=0;
+
+
+DISPLAY('Here');
+Display('0')=0;
+
+IF (a) = DISPLAY(1) THEN display(1);
+
+IF (a+1)=display(2);
+
+
+do while(1)=0 to while(2) while(a>b);
+end;
+while(1)=0;
+
+do while(1)=0 to while(2) while(a>b) until(b=c);
+end;
+
+do until(1)=0 to until(2) until(h=0);
+end;
+
+wait(a);
+wait(a)=0;
+a=wait(b);
+
+delay(10);
+delay(a)=9;
+
+return(9);
+return=0;
+
+
+select(1,2)=return(9);
+select ( select(1)); when(1) do; select=0; select(9,8)=0; end; end;
+
+
+when(1)=0;
+select; when(1) a=0; end;
+
+a0:proc;
+  display(*)=0;
+  display(*,1)=0;
+  display(1,*)=0;
+  display(*,*)=0;
+  delay(*)=0;
+  delay(*,1)=0;
+  delay(1,*)=0;
+  delay(*,*)=0;
+  if(*)=0;
+  if(*,1)=0;
+  if(1,*)=0;
+  if(*,*)=0;
+  return(*)=0;
+  return(*,1)=0;
+  return(1,*)=0;
+  return(*,*)=0;
+  select(*)=0;
+  select(*,1)=0;
+  select(1,*)=0;
+  select(*,*)=0;
+  until(*)=0;
+  until(*,1)=0;
+  until(1,*)=0;
+  until(*,*)=0;
+  wait(*)=0;
+  wait(1,*)=0;
+  wait(*,1)=0;
+  wait(*,*)=0;
+  when(*)=0;
+  when(1,*)=0;
+  when(*,1)=0;
+  when(*,*)=0;
+  while(*)=0;
+  while(*,1)=0;
+  while(1,*)=0;
+  while(*,*)=0;
+
+end;
+begin;
+dcl entry entry ext;
+end;
+begin;
+dcl entry entry(fixed) ext;
+end;
+a=entry(1);
+a(*)=entry(*);
+entry(1)=0;
+x:entry(ax,ay); /* statement */
+/* x:entry(a,a)=0; not allowed in pl1gcc */
+/* a:entry:proc(c); end; not allowed in pl1gcc */
+
+a=format(1);
+a(*)=format(*);
+format(1)=0;
+xf1:format(a,a);
+xf2:format(a,a)=0;
+a1:format:proc(c); end;
+
+proc(a,b)=0;
+i=proc(a,1,b);
+
+/*
+dcl=1;
+a=dcl+1;
+dcl(a)=0;
+*/
+dcl(a00) fixed;
+dcl(a01,b fixed);
+
+dfl=0;
+default=0;
+default range(*);
+
+get(a1,b)=0;
+b=get(a0,b);
+
+put(1,b,c)=get(a1,b);
+
+a: proc(put);
+dcl put(*,3) char(1);
+end a;
+
+
+put(*,*)=0;
+put(*,3)=1;
+get(3,*)=1;
+get(*,*)=0;
+
+
+fetch(*)=release(*);
+
+/* dcl as array */
+dcl(a,b),entry(9)=0;
+dcl(a,b),entry(i=0)=0;
+
+/* dcl as statement */
+begin;
+dcl(a,b),entry(9);
+end;
+begin;
+dcl(a,b),entry(i=0);
+end;
+begin;
+dcl(dcl(a,b),entry(9)) ;
+end;
+begin;
+dcl a,b,entry(9);
+end;
+dcl(dcl(a,b),entry(i=0))=0;
+
+dcl /* this is a comment */ (dcl(a,b),entry(i=0))=0;
+
+
+a1e:entry(i)=0;
+
+a1p:proc(i)=0;
+
+
+/* check that kw that are used by the lookahead scanning, works as id's */
+call entry;
+call proc;
+call dcl;
+call other;
+call snap;
+call format;
+call default;
+
+if p->statement.entry then line = line || "entry ";
+if p->statement.proc then line = line || "proc ";
+if p->statement.dcl then line = line || "dcl ";
+if p->statement.other then line = line || "other ";
+if p->statement.snap then line = line || "snap ";
+if p->statement.format then line = line || "format ";
+if p->statement.default then line = line || "default ";
+
+if p->statement.entry(1) then line = line || "entry ";
+if p->statement.proc(1) then line = line || "proc ";
+if p->statement.dcl(1) then line = line || "dcl ";
+if p->statement.other(1) then line = line || "other ";
+if p->statement.snap(1) then line = line || "snap ";
+if p->statement.format(1) then line = line || "format ";
+if p->statement.default(1) then line = line || "default ";
+
+goto finish;
+finish: entry.nnames = namecnt;
+snap:   proc;
+end snap ;
+end pl1_test_keywords;

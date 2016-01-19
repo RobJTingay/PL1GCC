@@ -1,0 +1,27 @@
+GCC PL/I
+========
+
+This directory is the pl1/ subdirectory, which is designed to
+be a subdirectory in the source code for gcc development tree, 
+for example in a directory named ~/gcc-src/gcc-4.3-20070112/gcc/pl1/
+
+For installation instructions please read the INSTALL file.
+
+The pl1gcc project is an attempt to create a native PL/I compiler using the
+GNU Compiler Collection. The project is looking for more people to join the
+development and testing. If you have any interest, please do contact us
+and join the fun.
+
+Tasks to work on:
+a) Error regression infrastructure
+b) Error message codes
+c) Case insensitive include name expansion
+d) Test cases
+e) Project web pages
+f) Language reference manual
+g) User guide
+h) Tutorial to PL/I
+i) Frequently asked questions
+j) Internals of pl1gcc
+
+http://pl1gcc.sourceforge.net

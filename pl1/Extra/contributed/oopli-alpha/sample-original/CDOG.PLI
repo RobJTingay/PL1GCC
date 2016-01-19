@@ -1,0 +1,92 @@
+ /*0*/ CDOG: PROC(className, memberName) RETURNS(PTR);
+ /*0*/ DCL (className, memberName) VAR CHAR(35);
+ /*2*/ 
+ /*0*/ DCL 1 Animal  BASED
+ /*0*/ ,   2 MYSOUND CHAR ( 10 ) INIT ( '(SILENCE)' )
+ /*0*/ ;
+ /*0*/ DCL CANIMAL EXT ENTRY(VAR CHAR(35), VAR CHAR(35)) RETURNS(PTR);
+ /*0*/ DCL 1 Dog  BASED
+ /*0*/ ;
+ /*19*/ 
+ /*0*/ DOGSPEAK: PROC(this) ;
+ /*0*/ DCL this PTR;
+ /*0*/ DCL varThis PTR INIT(this);
+ /*0*/ DO WHILE(varThis->varStruct.className ^= 'DOG');
+ /*0*/   varThis = varThis->varStruct.pNext;
+ /*0*/ END;
+ /*24*/ CALL
+ /*0*/ CANIMAL('ANIMAL',
+ /*0*/ 'SETSOUND')->entryStruct.callEntry(
+ /*0*/ (THIS)
+ /*0*/ ,'Wuff!'
+ /*0*/ )
+ /*24*/ ;
+ /*25*/ CALL
+ /*0*/ CANIMAL('ANIMAL',
+ /*0*/ 'SPEAK')->entryStruct.callEntry(
+ /*0*/ (THIS)
+ /*0*/ )
+ /*25*/ ;
+ /*26*/ END;
+ /*27*/ 
+ /*0*/ DOGCDOG: PROC(this);
+ /*0*/ DCL this PTR;
+ /*0*/ DCL varThis PTR;
+ /*0*/ varThis = this;
+ /*0*/ DO WHILE(varThis->varStruct.pNext ^= NULL());
+ /*0*/  varThis = varThis->varStruct.pNext;
+ /*0*/ END;
+ /*0*/ IF varThis->varStruct.className ^= 'DOG' THEN
+ /*0*/ DO;
+ /*0*/  ALLOCATE varStruct SET (varThis->varStruct.pNext);
+ /*0*/  varThis = varThis->varStruct.pNext;
+ /*0*/ END;
+ /*0*/ ALLOCATE DOG SET ( varThis->varStruct.varMem);
+ /*0*/ varThis->varStruct.pNext = NULL();
+ /*0*/ varThis->varStruct.className = 'DOG';
+ /*0*/ varThis->varStruct.superClassName = 'ANIMAL';
+ /*0*/ varThis->varStruct.pNext = NULL();
+ /*0*/ CALL
+ /*0*/ CANIMAL('ANIMAL',
+ /*0*/ 'CANIMAL')->entryStruct.callEntry(
+ /*0*/ (THIS)
+ /*0*/ )
+ /*0*/ ;
+ /*0*/ END;
+ /*0*/ DCL 1 oopliMethodTable(4) STATIC,
+ /*0*/    2 className      VAR CHAR(35),
+ /*0*/    2 superClassName VAR CHAR(35),
+ /*0*/    2 methodName     VAR CHAR(35),
+ /*0*/    2 functionCall BIT(1),
+ /*0*/    2 methodCallEntry  ENTRY,
+ /*0*/    2 methodFuncEntry  ENTRY RETURNS(PTR);
+ /*0*/ DCL oopliMethodCount BIN FIXED(31) INIT(4) STATIC;
+ /*0*/ DCL 1 oopliClassTable(2) STATIC,
+ /*0*/      2 className    VAR CHAR(35),
+ /*0*/      2 superClassName VAR CHAR(35),
+ /*0*/      2 fExternal BIT(1),
+ /*0*/      2 classEntry ENTRY(VAR CHAR(35), VAR CHAR(35)) RETURNS(PTR);
+ /*0*/ DCL oopliClassCount BIN FIXED(31) INIT(2) STATIC;
+ /*0*/ SetupMethodTable: PROC;
+ /*0*/ oopliMethodTable(1).className='DOG';
+ /*0*/ oopliMethodTable(1).superClassName='ANIMAL';
+ /*0*/ oopliMethodTable(1).methodName='SPEAK';
+ /*0*/ oopliMethodTable(1).methodCallEntry= DOGSPEAK;
+ /*0*/ oopliMethodTable(1).functionCall= '0'B;
+ /*0*/ oopliMethodTable(2).className='DOG';
+ /*0*/ oopliMethodTable(2).superClassName='ANIMAL';
+ /*0*/ oopliMethodTable(2).methodName='CDOG';
+ /*0*/ oopliMethodTable(2).methodCallEntry= DOGCDOG;
+ /*0*/ oopliMethodTable(2).functionCall= '0'B;
+ /*0*/ oopliClassTable(1).className='ANIMAL';
+ /*0*/ oopliClassTable(1).superClassName='';
+ /*0*/ oopliClassTable(1).fExternal = '1'B;
+ /*0*/ oopliClassTable(1).classEntry = CANIMAL;
+ /*0*/ oopliClassTable(2).className='DOG';
+ /*0*/ oopliClassTable(2).superClassName='ANIMAL';
+ /*0*/ oopliClassTable(2).fExternal = '0'B;
+ /*0*/ END;
+ /*0*/ %INCLUDE OOPLIRES;
+ /*0*/ CALL SetupMethodTable;
+ /*0*/ RETURN(OOPLIResolve(className, memberName));
+ /*28*/ END;
